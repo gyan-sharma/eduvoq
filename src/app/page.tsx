@@ -27,6 +27,12 @@ export default function Home() {
           Resource Corner
         </Link>
         <Link
+          href="/consult"
+          className="rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50"
+        >
+          Consultations
+        </Link>
+        <Link
           href="/login"
           className="rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50"
         >

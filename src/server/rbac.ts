@@ -41,6 +41,15 @@ export async function requireRole(...roles: Role[]): Promise<User> {
   return user;
 }
 
+/** Parents, educators, experts, and staff may book; students may not. */
+export async function requireBooker(): Promise<User> {
+  const user = await requireActiveUser();
+  if (user.role === Role.STUDENT) {
+    throw new Error("FORBIDDEN");
+  }
+  return user;
+}
+
 export async function revokeSessions(userId: string): Promise<void> {
   await prisma.user.update({
     where: { id: userId },

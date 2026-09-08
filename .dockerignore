@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.gitignore
+docs
+chalknpencil-archive
+.env
+.env.local
+.env.*.local
+*.md
+coverage
+playwright-report
+test-results
+storage
+*.log
+.DS_Store
+.pnpm-store

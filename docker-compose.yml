@@ -1,0 +1,36 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: eduvoq
+      MYSQL_USER: eduvoq
+      MYSQL_PASSWORD: eduvoq
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: .
+    environment:
+      DATABASE_URL: mysql://eduvoq:eduvoq@mysql:3306/eduvoq
+      AUTH_SECRET: devsecret
+      AUTH_URL: http://localhost:3000
+      PORT: 3000
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+
+volumes:
+  mysql_data:

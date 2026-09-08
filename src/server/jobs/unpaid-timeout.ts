@@ -1,7 +1,9 @@
-import { BookingStatus, OrderStatus } from "@prisma/client";
+import { BookingStatus } from "@prisma/client";
+import { PAYMENT_HOLD_MS } from "@/lib/payments/gateway";
+import { releaseExpiredPendingOrders } from "@/server/commerce";
 import { prisma } from "@/server/db";
 
-export const UNPAID_TIMEOUT_MS = 15 * 60 * 1000;
+export const UNPAID_TIMEOUT_MS = PAYMENT_HOLD_MS;
 
 export async function runUnpaidTimeout(now = new Date()): Promise<{
   bookingsDeleted: number;
@@ -16,16 +18,10 @@ export async function runUnpaidTimeout(now = new Date()): Promise<{
     },
   });
 
-  const orders = await prisma.order.updateMany({
-    where: {
-      status: OrderStatus.PENDING_PAYMENT,
-      OR: [{ expiresAt: { lte: now } }, { expiresAt: null, createdAt: { lt: cutoff } }],
-    },
-    data: { status: OrderStatus.CANCELLED },
-  });
+  const ordersCancelled = await releaseExpiredPendingOrders(now);
 
   return {
     bookingsDeleted: bookings.count,
-    ordersCancelled: orders.count,
+    ordersCancelled,
   };
 }

@@ -564,7 +564,7 @@ model Booking {
   status          BookingStatus @default(PENDING_PAYMENT)
   meetingUrl      String?       @db.VarChar(512)
   notes           String?       @db.Text
-  razorpayOrderId String?
+  razorpayOrderId String? // Razorpay order id or Stripe Checkout Session id
   createdAt       DateTime      @default(now())
   service         ConsultationService @relation(fields: [serviceId], references: [id])
   expert          User                @relation("expert", fields: [expertId], references: [id])
@@ -675,8 +675,8 @@ model Order {
   invoiceNumber     String?     @unique
   buyerGstin        String?
   shippingAddressId String?
-  razorpayOrderId   String?     @unique
-  razorpayPaymentId String?
+  razorpayOrderId   String?     @unique // Razorpay order id or Stripe Checkout Session id
+  razorpayPaymentId String? // Razorpay payment id or Stripe PaymentIntent id
   expiresAt         DateTime? // 15 min; aligned with Razorpay order expiry
   createdAt         DateTime    @default(now())
   user              User        @relation(fields: [userId], references: [id])

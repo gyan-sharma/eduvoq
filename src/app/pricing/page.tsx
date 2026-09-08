@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { UserStatus } from "@prisma/client";
 
 import { MarketingPage } from "@/components/marketing-page";
+import { BuyWebinarPackForm } from "@/components/payments/pay-form";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,7 +14,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { WEBINAR_PACK_FALLBACK } from "@/content/cms";
+import { formatInrPaise } from "@/lib/money";
 import { prisma } from "@/server/db";
+import { requireSession } from "@/server/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -21,14 +25,6 @@ export const metadata: Metadata = {
   description:
     "Webinars and Guidance — ₹10 one-time pack, valid for 3 months.",
 };
-
-function formatInrPaise(paise: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(paise / 100);
-}
 
 async function getWebinarPack() {
   try {
@@ -41,6 +37,7 @@ async function getWebinarPack() {
         pricePaise: plan.pricePaise,
         durationMonths: plan.durationMonths,
         description: plan.description,
+        interval: plan.interval,
       };
     }
   } catch {
@@ -51,6 +48,8 @@ async function getWebinarPack() {
 
 export default async function PricingPage() {
   const pack = await getWebinarPack();
+  const user = await requireSession().catch(() => null);
+  const canBuy = user?.status === UserStatus.ACTIVE;
 
   return (
     <MarketingPage
@@ -71,20 +70,24 @@ export default async function PricingPage() {
           <p className="text-sm leading-6 text-muted-foreground">
             {pack.description}
           </p>
+          <p className="text-xs text-muted-foreground">
+            Charged once via Razorpay (India) or Stripe card (international). We
+            do not create Razorpay Subscriptions or Stripe Billing cycles.
+          </p>
         </CardContent>
-        <CardFooter className="flex flex-wrap gap-3">
-          <Button disabled title="Payments are not enabled yet">
-            Buy Now
-          </Button>
+        <CardFooter className="flex flex-col items-stretch gap-3">
+          {canBuy ? (
+            <BuyWebinarPackForm />
+          ) : (
+            <Button asChild>
+              <Link href="/login?callbackUrl=/pricing">Log in to buy</Link>
+            </Button>
+          )}
           <Button variant="outline" asChild>
             <Link href="/contact">Contact us</Link>
           </Button>
         </CardFooter>
       </Card>
-      <p className="mt-4 max-w-md text-sm text-muted-foreground">
-        Checkout is not wired in this release. Email us if you want the pack
-        before online payments go live.
-      </p>
     </MarketingPage>
   );
 }

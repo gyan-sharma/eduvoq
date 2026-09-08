@@ -53,6 +53,18 @@ export default async function AccountPage() {
         <Link href="/account/addresses" className={`${secondaryButtonClass} w-auto`}>
           Addresses
         </Link>
+        <Link href="/account/bookings" className={`${secondaryButtonClass} w-auto`}>
+          Bookings
+        </Link>
+        <Link
+          href="/account/subscriptions"
+          className={`${secondaryButtonClass} w-auto`}
+        >
+          Subscriptions
+        </Link>
+        <Link href="/account/wallet" className={`${secondaryButtonClass} w-auto`}>
+          Wallet
+        </Link>
         <Link href="/resources" className={`${secondaryButtonClass} w-auto`}>
           Resource Corner
         </Link>

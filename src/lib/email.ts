@@ -73,7 +73,25 @@ export async function sendBookingCreatedEmail(input: {
   await sendEmail({
     to: input.to,
     subject: `Booking recorded: ${input.title}`,
-    text: `Your EduVoq consultation is held for 15 minutes pending payment.\n\n${input.title}\nWhen: ${input.whenLabel}${expert}\n${meeting}\n\nManage bookings: ${appUrl()}/account/bookings\n\nPayment confirmation lands in a later release; unpaid holds expire after 15 minutes.`,
+    text: `Your EduVoq consultation is held for 15 minutes pending payment.\n\n${input.title}\nWhen: ${input.whenLabel}${expert}\n${meeting}\n\nComplete payment from ${appUrl()}/account/bookings — unpaid holds expire after 15 minutes.`,
+  });
+}
+
+export async function sendBookingConfirmedEmail(input: {
+  to: string;
+  title: string;
+  whenLabel: string;
+  meetingUrl: string | null;
+  expertName: string | null;
+}): Promise<void> {
+  const meeting = input.meetingUrl
+    ? `Meeting link: ${input.meetingUrl}`
+    : "Your expert will share a meeting link before the session.";
+  const expert = input.expertName ? `\nExpert: ${input.expertName}` : "";
+  await sendEmail({
+    to: input.to,
+    subject: `Booking confirmed: ${input.title}`,
+    text: `Payment received. Your EduVoq consultation is confirmed.\n\n${input.title}\nWhen: ${input.whenLabel}${expert}\n${meeting}\n\nManage bookings: ${appUrl()}/account/bookings`,
   });
 }
 

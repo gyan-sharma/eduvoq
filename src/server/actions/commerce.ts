@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { ProductType, type Address } from "@prisma/client";
 import { INDIA_COUNTRY } from "@/lib/india";
 import { logger } from "@/lib/logger";
+import { PaymentError } from "@/lib/payments/gateway";
+import type { RazorpayClientCheckout } from "@/lib/payments/types";
 import { MAX_CART_QTY } from "@/lib/types/commerce";
 import {
   addToCartSchema,
@@ -24,12 +26,15 @@ import {
 } from "@/server/commerce";
 import { prisma } from "@/server/db";
 import { isFlagEnabled } from "@/server/flags";
+import { startOrderCheckout } from "@/server/payments";
 import { requireActiveUser } from "@/server/rbac";
 
 export type CommerceActionState = {
   ok?: boolean;
   error?: string;
   message?: string;
+  razorpay?: RazorpayClientCheckout;
+  orderId?: string;
 } | null;
 
 function firstZodError(error: { issues: { message: string }[] }): string {
@@ -37,7 +42,9 @@ function firstZodError(error: { issues: { message: string }[] }): string {
 }
 
 function actionError(error: unknown): CommerceActionState {
-  if (error instanceof CommerceError) return { error: error.message };
+  if (error instanceof CommerceError || error instanceof PaymentError) {
+    return { error: error.message };
+  }
   if (error instanceof Error) {
     if (error.message === "UNAUTHORIZED") {
       return { error: "Please log in to continue." };
@@ -311,6 +318,7 @@ export async function placeOrder(
   formData: FormData,
 ): Promise<CommerceActionState> {
   let orderId: string | null = null;
+  let checkout: Awaited<ReturnType<typeof startOrderCheckout>> | null = null;
   try {
     await requireCommerce();
     const user = await requireActiveUser();
@@ -330,6 +338,7 @@ export async function placeOrder(
             phone: emptyToUndef(String(formData.get("phone") ?? "")),
           },
       buyerGstin: emptyToUndef(String(formData.get("buyerGstin") ?? "")),
+      gateway: String(formData.get("gateway") ?? "razorpay"),
     });
     if (!parsed.success) return { error: firstZodError(parsed.error) };
 
@@ -355,11 +364,31 @@ export async function placeOrder(
       physicalEnabled,
     });
     orderId = order.id;
+    checkout = await startOrderCheckout({
+      orderId: order.id,
+      user: { id: user.id, email: user.email, name: user.name },
+      gateway: parsed.data.gateway,
+    });
   } catch (error) {
+    if (orderId) {
+      revalidateCommerce();
+      return {
+        ...actionError(error),
+        orderId,
+        message:
+          "Order saved. Complete payment from your orders page within 15 minutes.",
+      };
+    }
     return actionError(error);
   }
 
   revalidateCommerce();
+  if (checkout?.gateway === "stripe") {
+    redirect(checkout.redirectUrl);
+  }
+  if (checkout?.gateway === "razorpay") {
+    return { ok: true, orderId: orderId ?? undefined, razorpay: checkout.razorpay };
+  }
   redirect(`/account/orders/${orderId}?placed=1`);
 }
 

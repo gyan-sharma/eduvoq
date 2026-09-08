@@ -14,6 +14,8 @@ import {
   sendExpertBookingEmail,
 } from "@/lib/email";
 import { logger } from "@/lib/logger";
+import { PaymentError } from "@/lib/payments/gateway";
+import type { RazorpayClientCheckout } from "@/lib/payments/types";
 import { formatKolkata, normalizeToKolkataMinute } from "@/lib/kolkata";
 import { isUniqueConstraintError } from "@/lib/prisma-errors";
 import {
@@ -26,12 +28,14 @@ import {
 } from "@/server/booking-assign";
 import { prisma } from "@/server/db";
 import { isFlagEnabled } from "@/server/flags";
+import { startBookingCheckout } from "@/server/payments";
 import { requireBooker, requireSession } from "@/server/rbac";
 
 export type BookingActionState = {
   ok?: boolean;
   error?: string;
   bookingId?: string;
+  razorpay?: RazorpayClientCheckout;
 } | null;
 
 class SlotTakenError extends Error {
@@ -56,6 +60,7 @@ function actionError(error: unknown): BookingActionState {
   if (error instanceof SlotTakenError || error instanceof IntervalConflictError) {
     return { error: "That time is no longer available. Pick another slot." };
   }
+  if (error instanceof PaymentError) return { error: error.message };
   if (error instanceof Error) {
     if (error.message === "UNAUTHORIZED") {
       return { error: "Please log in to book a consultation." };
@@ -88,6 +93,7 @@ export async function createBooking(
     serviceSlug: String(formData.get("serviceSlug") ?? ""),
     startsAt: String(formData.get("startsAt") ?? ""),
     notes: String(formData.get("notes") ?? ""),
+    gateway: String(formData.get("gateway") ?? "razorpay"),
   });
   if (!parsed.success) return { error: firstZodError(parsed.error) };
 
@@ -220,7 +226,33 @@ export async function createBooking(
 
   revalidatePath("/account/bookings");
   revalidatePath(`/book/${service.slug}`);
-  redirect(`/account/bookings?booked=${createdId}`);
+
+  if (service.pricePaise < 1) {
+    redirect(`/account/bookings?booked=${createdId}`);
+  }
+
+  let start: Awaited<ReturnType<typeof startBookingCheckout>>;
+  try {
+    start = await startBookingCheckout({
+      bookingId: createdId,
+      user: { id: user.id, email: user.email, name: user.name },
+      gateway: parsed.data.gateway,
+    });
+  } catch (error) {
+    const failed = actionError(error);
+    return {
+      ok: failed?.ok,
+      razorpay: failed?.razorpay,
+      bookingId: createdId,
+      error:
+        failed?.error ??
+        "Booking held for 15 minutes. Complete payment from My bookings.",
+    };
+  }
+  if (start.gateway === "stripe") {
+    redirect(start.redirectUrl);
+  }
+  return { ok: true, bookingId: createdId, razorpay: start.razorpay };
 }
 
 export async function cancelBooking(

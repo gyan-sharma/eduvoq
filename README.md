@@ -68,7 +68,15 @@ Educator/expert uploads land in `Resource.status=IN_REVIEW`. Staff/admin uploads
 | `/cart` `/checkout` | member | DB cart; no guest checkout |
 | `/account/orders` `/account/addresses` | member | India addresses; GST ₹0 |
 
-Physical self-ship (`commerce_physical=true`): India only, prepaid, no COD. Metro ₹79 / rest of India ₹129. `placeOrder` decrements stock in a transaction and leaves the order `PENDING_PAYMENT` until payments (PR 15). Placeholder `i-m-a-product-*` SKUs are not sold.
+Physical self-ship (`commerce_physical=true`): India only, prepaid, no COD. Metro ₹79 / rest of India ₹129. `placeOrder` decrements stock in a transaction and holds `PENDING_PAYMENT` for 15 minutes.
+
+## Payments
+
+India checkout uses **Razorpay** (default). “Pay with card (international)” uses **Stripe Checkout** in `mode=payment`. Both charge **INR paise**. Webhooks `POST /api/webhooks/razorpay` and `POST /api/webhooks/stripe` insert `PaymentEvent` uniquely on `(provider, providerEventId)` (duplicate → no-op) and fulfill orders, bookings, and the webinar pack.
+
+The `/pricing` webinar pack is a **one-time ₹10 / 3 months** order. Do not use Razorpay Subscriptions or Stripe Billing. `/account/subscriptions` and `/account/wallet` are display-only (`wallet_spend` off).
+
+Placeholder `i-m-a-product-*` SKUs are not sold.
 
 ## Scripts
 
@@ -78,7 +86,7 @@ Physical self-ship (`commerce_physical=true`): India only, prepaid, no COD. Metr
 | `pnpm build` | Production build (`output: "standalone"`) |
 | `pnpm start` | Run the production server |
 | `pnpm lint` | ESLint (`next/core-web-vitals`) |
-| `pnpm test` | Vitest (age-gate, storage, entitlements, commerce) |
+| `pnpm test` | Vitest (age-gate, storage, entitlements, commerce, payments) |
 | `pnpm db:seed` | Seed admin, catalog, consultation services, shipping rates |
 
 Do not commit secrets or the `chalknpencil-archive/` snapshot.

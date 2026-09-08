@@ -19,18 +19,36 @@ services:
       timeout: 5s
       retries: 20
 
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
   app:
     build: .
     environment:
       DATABASE_URL: mysql://eduvoq:eduvoq@mysql:3306/eduvoq
       AUTH_SECRET: devsecret
+      # Next stays :3000 internally; Caddy publishes :80. Use AUTH_URL=http://localhost for the proxy.
       AUTH_URL: http://localhost:3000
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
       PORT: 3000
     depends_on:
       mysql:
         condition: service_healthy
     ports:
       - "3000:3000"
+
+  caddy:
+    image: caddy:2
+    volumes:
+      - ./caddy/Caddyfile.local:/etc/caddy/Caddyfile
+    ports:
+      - "80:80"
+    depends_on:
+      - app
 
 volumes:
   mysql_data:

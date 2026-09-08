@@ -1,0 +1,11 @@
+{
+  local_certs
+  auto_https off
+}
+
+:80 {
+  encode gzip
+  handle {
+    reverse_proxy app:3000
+  }
+}

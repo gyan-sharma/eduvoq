@@ -7,7 +7,7 @@ import { ConsentType, Role, UserStatus } from "@prisma/client";
 import { signIn, signOut, unstable_update } from "@/auth";
 import { prisma } from "@/server/db";
 import { requireRole, requireSession, revokeSessions } from "@/server/rbac";
-import { adultGateError, ageYears, parseIsoDate } from "@/lib/age";
+import { adultGateError, ageYears, MIN_ADULT_AGE, parseIsoDate } from "@/lib/age";
 import { sendResetEmail, sendVerifyEmail } from "@/lib/email";
 import { STUDENT_SELF_REGISTER, TOS_VERSION } from "@/lib/flags";
 import { hashPassword } from "@/lib/password";
@@ -184,11 +184,18 @@ export async function completeProfile(
 
   const dob = parseIsoDate(parsed.data.dateOfBirth);
   if (!dob) return { error: "Enter a valid date of birth." };
-  const gate = adultGateError(dob);
-  if (gate) {
+  const age = ageYears(dob);
+  if (age < 0 || age > 120) {
+    return { error: "Enter a valid date of birth." };
+  }
+  if (age < MIN_ADULT_AGE) {
     // Free the email so a parent can create a STUDENT with this address.
     await prisma.user.delete({ where: { id: user.id } });
     await signOut({ redirectTo: "/register?error=NeedParent" });
+    return {
+      error:
+        "You must be 18 or older to create an account. Ask a parent to create your account.",
+    };
   }
 
   const ip = await clientIp();

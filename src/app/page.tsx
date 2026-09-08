@@ -1,26 +1,14 @@
-import Link from "next/link";
-
 export default function Home() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-      <h1 className="text-4xl font-semibold tracking-tight text-stone-900">
+    <section className="mx-auto flex w-full max-w-3xl flex-col items-center px-6 py-24 text-center">
+      <h1 className="font-heading text-4xl font-semibold tracking-tight">
         EduVoq
       </h1>
-      <p className="mt-3 text-lg text-stone-600">Connecting Educators</p>
-      <div className="mt-8 flex gap-3">
-        <Link
-          href="/login"
-          className="rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50"
-        >
-          Log in
-        </Link>
-        <Link
-          href="/register"
-          className="rounded-md bg-emerald-800 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-        >
-          Join
-        </Link>
-      </div>
-    </main>
+      <p className="mt-3 text-lg text-muted-foreground">Connecting Educators</p>
+      <p className="mt-6 max-w-xl text-muted-foreground">
+        A professional network and resource hub for school teachers and K-12
+        stakeholders.
+      </p>
+    </section>
   );
 }

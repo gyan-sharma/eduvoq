@@ -3,9 +3,8 @@ node_modules/
 out/
 dist/
 coverage/
-.env
-.env.local
-.env.*.local
+.env*
+!.env.example
 *.log
 .DS_Store
 chalknpencil-archive/
@@ -15,4 +14,3 @@ test-results/
 storage/
 *.pem
 *.tsbuildinfo
-next-env.d.ts

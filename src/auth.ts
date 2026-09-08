@@ -26,7 +26,8 @@ const adapter: Adapter = {
       data: {
         name: data.name,
         email: data.email,
-        emailVerified: data.emailVerified,
+        // Auth.js passes emailVerified: null; OAuth email is provider-verified.
+        emailVerified: data.emailVerified ?? new Date(),
         image: data.image,
         username,
         // OAuth never collected DOB; complete-profile is required on every social path.
@@ -119,30 +120,57 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user }) {
-      const id = user?.id ?? (token.id as string | undefined) ?? token.sub;
+      if (user) {
+        const id = user.id;
+        if (!id) return token;
+        token.id = id;
+        const db = await prisma.user.findUnique({
+          where: { id },
+          select: {
+            role: true,
+            username: true,
+            status: true,
+            tokenVersion: true,
+          },
+        });
+        if (db) {
+          token.role = db.role;
+          token.username = db.username;
+          token.status = db.status;
+          token.tokenVersion = db.tokenVersion;
+        } else {
+          token.role = user.role;
+          token.username = user.username ?? null;
+          token.status = user.status;
+          token.tokenVersion = user.tokenVersion ?? 0;
+        }
+        return token;
+      }
+
+      const id = (token.id as string | undefined) ?? token.sub;
       if (!id) return token;
-      token.id = id;
-      // Re-read status/tokenVersion so ban, reset, and PENDING_PROFILE → ACTIVE
-      // take effect on the next request instead of waiting out JWT maxAge.
-      const db = await prisma.user.findUnique({
-        where: { id },
-        select: {
-          role: true,
-          username: true,
-          status: true,
-          tokenVersion: true,
-        },
-      });
-      if (db) {
+
+      try {
+        const db = await prisma.user.findUnique({
+          where: { id },
+          select: {
+            role: true,
+            username: true,
+            status: true,
+            tokenVersion: true,
+          },
+        });
+        if (!db) return null;
+        // tokenVersion is issued at sign-in and must stay sticky. Copying the DB
+        // value here would make requireSession() never see a revokeSessions mismatch.
+        if (db.tokenVersion !== Number(token.tokenVersion ?? 0)) {
+          return null;
+        }
         token.role = db.role;
         token.username = db.username;
         token.status = db.status;
-        token.tokenVersion = db.tokenVersion;
-      } else if (user) {
-        token.role = user.role;
-        token.username = user.username ?? null;
-        token.status = user.status;
-        token.tokenVersion = user.tokenVersion ?? 0;
+      } catch {
+        return token;
       }
       return token;
     },
@@ -165,6 +193,10 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         existing &&
         !existing.accounts.some((row) => row.provider === account.provider)
       ) {
+        // Anonymous same-email OAuth is blocked; an already-signed-in user
+        // may link this provider onto their own row (Auth.js linkAccount).
+        const session = await auth();
+        if (session?.user?.id === existing.id) return true;
         return "/login?error=LinkRequired";
       }
       return true;

@@ -23,6 +23,9 @@ function loginErrorMessage(error?: string): string | null {
   if (error === "Configuration") {
     return "This sign-in method is not configured.";
   }
+  if (error === "NeedParent") {
+    return "You must be 18 or older to create an account. Ask a parent to create your account.";
+  }
   return "Unable to sign in.";
 }
 

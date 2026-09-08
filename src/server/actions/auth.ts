@@ -185,7 +185,11 @@ export async function completeProfile(
   const dob = parseIsoDate(parsed.data.dateOfBirth);
   if (!dob) return { error: "Enter a valid date of birth." };
   const gate = adultGateError(dob);
-  if (gate) return { error: gate };
+  if (gate) {
+    // Free the email so a parent can create a STUDENT with this address.
+    await prisma.user.delete({ where: { id: user.id } });
+    await signOut({ redirectTo: "/register?error=NeedParent" });
+  }
 
   const ip = await clientIp();
   await prisma.$transaction([
@@ -194,6 +198,7 @@ export async function completeProfile(
       data: {
         dateOfBirth: dob,
         status: UserStatus.ACTIVE,
+        emailVerified: user.emailVerified ?? new Date(),
       },
     }),
     prisma.consent.create({

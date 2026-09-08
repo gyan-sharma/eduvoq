@@ -5,10 +5,15 @@ import { auth } from "@/auth";
 import { AuthCard } from "@/components/auth/auth-card";
 import { RegisterForm } from "@/components/auth/register-form";
 import { SocialButtons } from "@/components/auth/social-buttons";
+import { errorClass } from "@/components/auth/ui";
 
 export const dynamic = "force-dynamic";
 
-export default async function RegisterPage() {
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const session = await auth();
   if (session?.user?.status === UserStatus.PENDING_PROFILE) {
     redirect("/complete-profile");
@@ -17,11 +22,20 @@ export default async function RegisterPage() {
     redirect("/account");
   }
 
+  const { error } = await searchParams;
+  const parentMessage =
+    error === "NeedParent"
+      ? "You must be 18 or older to create an account. Ask a parent to create your account."
+      : null;
+
   return (
     <AuthCard
       title="Join EduVoq"
       subtitle="A professional network for school teachers and K-12 stakeholders."
     >
+      {parentMessage ? (
+        <p className={`${errorClass} mb-4`}>{parentMessage}</p>
+      ) : null}
       <RegisterForm />
       <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-wide text-stone-400">
         <span className="h-px flex-1 bg-stone-200" />

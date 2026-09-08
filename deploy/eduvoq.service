@@ -1,0 +1,28 @@
+[Unit]
+Description=EduVoq Next.js (www.eduvoq.com)
+After=network-online.target mysql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/eduvoq/.next/standalone
+EnvironmentFile=-/var/www/eduvoq/.env
+Environment=NODE_ENV=production
+Environment=PORT=3110
+Environment=HOSTNAME=127.0.0.1
+Environment=NODE_OPTIONS=--max-old-space-size=384
+# env PREFIX wins over EnvironmentFile so a leftover PORT=3000 cannot bind the public Next port.
+ExecStart=/usr/bin/env PORT=3110 HOSTNAME=127.0.0.1 NODE_OPTIONS=--max-old-space-size=384 /usr/bin/node server.js
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+KillMode=mixed
+SyslogIdentifier=eduvoq
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

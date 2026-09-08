@@ -100,3 +100,7 @@ Public `/events` and `/events/[slug]` list published events. Wix science-fair / 
 Canonical URL is `https://www.eduvoq.com`. DNS A records for `@` and `www` point at neojn (`68.183.85.203`). Apex 301s to www via host Caddy. Wix path aliases are 301s in `redirects.json`. See [docs/dns-cutover.md](docs/dns-cutover.md).
 
 Do not commit secrets or the `chalknpencil-archive/` snapshot.
+
+## Production (neojn)
+
+See [docs/deploy-neojn.md](docs/deploy-neojn.md). Canonical URL: https://www.eduvoq.com. Caddy site, systemd unit, DB backup, and cron timer live in `caddy/eduvoq.caddy`, `deploy/eduvoq.service`, and `scripts/`.

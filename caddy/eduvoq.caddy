@@ -1,0 +1,13 @@
+# Production site for host Caddy on neojn.
+# Install: /etc/caddy/sites/eduvoq.caddy
+# Host Caddyfile already imports /etc/caddy/sites/*.caddy
+# Do not run a Compose Caddy container on this droplet.
+
+www.eduvoq.com {
+  encode gzip zstd
+  reverse_proxy 127.0.0.1:3110
+}
+
+eduvoq.com {
+  redir https://www.eduvoq.com{uri} permanent
+}

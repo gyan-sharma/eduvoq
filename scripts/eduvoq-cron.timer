@@ -1,0 +1,14 @@
+[Unit]
+Description=EduVoq cron every 5 minutes
+
+[Timer]
+OnCalendar=*:0/5
+AccuracySec=30s
+Persistent=true
+Unit=eduvoq-cron.service
+
+[Install]
+WantedBy=timers.target
+
+# Crontab alternative (if not using this timer) — /etc/cron.d/eduvoq:
+# */5 * * * * www-data . /var/www/eduvoq/.env && /usr/bin/curl -fsS --max-time 60 -H "Authorization: Bearer ${CRON_SECRET}" http://127.0.0.1:3110/api/cron >/dev/null

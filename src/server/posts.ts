@@ -33,6 +33,11 @@ export type PostView = PostListItem & {
   kind: PostKind;
 };
 
+export type StaffPostView = PostView & {
+  status: PostStatus;
+  authorEmail: string;
+};
+
 const SEED_AUTHOR = "EduVoq Editorial";
 
 const postListSelect = {
@@ -158,6 +163,25 @@ export async function listPublishedBlogPosts(): Promise<PostListItem[]> {
 export async function listPublishedPosts(): Promise<PostView[]> {
   const rows = await queryPublished();
   return rows ?? seedPublished();
+}
+
+export async function getPostByIdForStaff(
+  id: string,
+): Promise<StaffPostView | null> {
+  const row = await prisma.post.findUnique({
+    where: { id },
+    select: {
+      ...postListSelect,
+      status: true,
+      author: { select: { name: true, username: true, email: true } },
+    },
+  });
+  if (!row) return null;
+  return {
+    ...toView(row as PostRow),
+    status: row.status,
+    authorEmail: row.author.email,
+  };
 }
 
 export async function getPublishedPostBySlug(

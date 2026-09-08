@@ -3,9 +3,6 @@ import Link from "next/link";
 import { PostStatus } from "@prisma/client";
 
 import { AdminFlash } from "@/components/admin/flash";
-import { buttonClass, secondaryButtonClass } from "@/components/auth/ui";
-import { canPublishPost, canRejectPost } from "@/lib/admin-policy";
-import { moderatePost } from "@/server/actions/admin";
 import { prisma } from "@/server/db";
 
 export const metadata: Metadata = { title: "Posts | Admin" };
@@ -26,6 +23,7 @@ export default async function AdminPostsPage({
       id: true,
       slug: true,
       title: true,
+      excerpt: true,
       status: true,
       kind: true,
       createdAt: true,
@@ -39,7 +37,8 @@ export default async function AdminPostsPage({
         Post moderation
       </h1>
       <p className="mt-1 text-sm text-stone-600">
-        IN_REVIEW submissions become public when published.
+        Open a submission to read the body, then publish or reject. Public{" "}
+        <code className="text-xs">/blog/[slug]</code> stays published-only.
       </p>
       <div className="mt-4">
         <AdminFlash ok={ok} error={error} />
@@ -57,32 +56,19 @@ export default async function AdminPostsPage({
               <p className="mt-1 text-sm text-stone-600">
                 {post.status} · {post.kind} · {post.author.name ?? post.author.email}
               </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {canPublishPost(post.status) ? (
-                  <form action={moderatePost}>
-                    <input type="hidden" name="postId" value={post.id} />
-                    <input type="hidden" name="decision" value="publish" />
-                    <button className={`${buttonClass} w-auto`} type="submit">
-                      Publish
-                    </button>
-                  </form>
-                ) : null}
-                {canRejectPost(post.status) ? (
-                  <form action={moderatePost}>
-                    <input type="hidden" name="postId" value={post.id} />
-                    <input type="hidden" name="decision" value="reject" />
-                    <button className={`${secondaryButtonClass} w-auto`} type="submit">
-                      Reject
-                    </button>
-                  </form>
-                ) : null}
+              {post.excerpt ? (
+                <p className="mt-2 line-clamp-3 text-sm text-stone-700">
+                  {post.excerpt}
+                </p>
+              ) : null}
+              <p className="mt-3">
                 <Link
-                  href={`/blog/${post.slug}`}
-                  className="self-center text-sm text-emerald-800 hover:underline"
+                  href={`/admin/posts/${post.id}`}
+                  className="text-sm font-medium text-emerald-800 hover:underline"
                 >
-                  Preview slug
+                  Review body
                 </Link>
-              </div>
+              </p>
             </li>
           ))}
         </ul>

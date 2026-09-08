@@ -1,4 +1,5 @@
 import {
+  BookingStatus,
   OrderStatus,
   PostStatus,
   ResourceStatus,
@@ -100,6 +101,18 @@ export function canPublishPost(status: PostStatus): boolean {
 
 export function canRejectPost(status: PostStatus): boolean {
   return status === PostStatus.IN_REVIEW || status === PostStatus.DRAFT;
+}
+
+export function canArchivePost(status: PostStatus): boolean {
+  return status === PostStatus.PUBLISHED;
+}
+
+/** Cancel must drop the row so `@@unique([expertId, startsAt])` can be reused. */
+export function shouldDeleteBookingToFreeSlot(status: BookingStatus): boolean {
+  return (
+    status === BookingStatus.PENDING_PAYMENT ||
+    status === BookingStatus.CONFIRMED
+  );
 }
 
 export function canPublishResource(status: ResourceStatus): boolean {

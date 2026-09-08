@@ -14,6 +14,7 @@ import {
 } from "@prisma/client";
 
 import {
+  canArchivePost,
   canBanUser,
   canGrantExpertRole,
   canPublishPost,
@@ -23,6 +24,7 @@ import {
   canSetFeatureFlag,
   cmsPublicPath,
   nextFulfillmentStatus,
+  shouldDeleteBookingToFreeSlot,
 } from "@/lib/admin-policy";
 import { logger } from "@/lib/logger";
 import { emptyDoc, parseTipTapDoc, textFromTipTap } from "@/content/tiptap";
@@ -290,10 +292,18 @@ export async function moderatePost(formData: FormData): Promise<void> {
     postId: String(formData.get("postId") ?? ""),
     decision: String(formData.get("decision") ?? ""),
   });
-  const back = "/admin/posts";
+  const list = "/admin/posts";
   if (!parsed.success) {
-    redirect(`${back}?error=${encodeURIComponent(firstZodError(parsed.error))}`);
+    redirect(`${list}?error=${encodeURIComponent(firstZodError(parsed.error))}`);
   }
+
+  const preview = (id: string, result: { ok?: string; error?: string }) => {
+    const params = new URLSearchParams();
+    if (result.ok) params.set("ok", result.ok);
+    if (result.error) params.set("error", result.error);
+    const query = params.toString();
+    return query ? `/admin/posts/${id}?${query}` : `/admin/posts/${id}`;
+  };
 
   try {
     const actor = await requireStaff();
@@ -309,11 +319,21 @@ export async function moderatePost(formData: FormData): Promise<void> {
         kind: true,
       },
     });
-    if (!post) redirect(`${back}?error=${encodeURIComponent("Post not found.")}`);
+    if (!post) redirect(`${list}?error=${encodeURIComponent("Post not found.")}`);
+
+    const revalidatePublic = () => {
+      revalidatePath("/blog");
+      revalidatePath(`/blog/${post.slug}`);
+      revalidatePath("/news");
+      revalidatePath("/rss.xml");
+      revalidatePath("/sitemap.xml");
+      revalidatePath("/admin/posts");
+      revalidatePath(`/admin/posts/${post.id}`);
+    };
 
     if (parsed.data.decision === "publish") {
       if (!canPublishPost(post.status)) {
-        redirect(`${back}?error=${encodeURIComponent("This post cannot be published.")}`);
+        redirect(preview(post.id, { error: "This post cannot be published." }));
       }
       await prisma.post.update({
         where: { id: post.id },
@@ -338,17 +358,31 @@ export async function moderatePost(formData: FormData): Promise<void> {
         entityId: post.id,
         meta: { slug: post.slug },
       });
-      revalidatePath("/blog");
-      revalidatePath(`/blog/${post.slug}`);
-      revalidatePath("/news");
-      revalidatePath("/rss.xml");
-      revalidatePath("/sitemap.xml");
-      revalidatePath("/admin/posts");
-      redirect(`${back}?ok=${encodeURIComponent("Post published.")}`);
+      revalidatePublic();
+      redirect(preview(post.id, { ok: "Post published." }));
+    }
+
+    if (parsed.data.decision === "archive") {
+      if (!canArchivePost(post.status)) {
+        redirect(preview(post.id, { error: "Only published posts can be archived." }));
+      }
+      await prisma.post.update({
+        where: { id: post.id },
+        data: { status: PostStatus.ARCHIVED },
+      });
+      await writeAudit({
+        actorId: actor.id,
+        action: "post.archive",
+        entity: "Post",
+        entityId: post.id,
+        meta: { slug: post.slug },
+      });
+      revalidatePublic();
+      redirect(preview(post.id, { ok: "Post archived." }));
     }
 
     if (!canRejectPost(post.status)) {
-      redirect(`${back}?error=${encodeURIComponent("This post cannot be rejected.")}`);
+      redirect(preview(post.id, { error: "This post cannot be rejected." }));
     }
     await prisma.post.update({
       where: { id: post.id },
@@ -371,10 +405,11 @@ export async function moderatePost(formData: FormData): Promise<void> {
       meta: { slug: post.slug },
     });
     revalidatePath("/admin/posts");
-    redirect(`${back}?ok=${encodeURIComponent("Post rejected.")}`);
+    revalidatePath(`/admin/posts/${post.id}`);
+    redirect(preview(post.id, { ok: "Post rejected." }));
   } catch (error) {
     const mapped = adminActionError(error);
-    if (mapped) redirect(`${back}?error=${encodeURIComponent(mapped.error)}`);
+    if (mapped) redirect(`${list}?error=${encodeURIComponent(mapped.error)}`);
     throw error;
   }
 }
@@ -538,8 +573,11 @@ export async function advanceOrder(formData: FormData): Promise<void> {
       meta: { from: order.status, to: next },
     });
     revalidatePath("/admin/orders");
+    revalidatePath(`/admin/orders/${order.id}`);
     revalidatePath("/account/orders");
-    redirect(`${back}?ok=${encodeURIComponent(`Order marked ${next.toLowerCase()}.`)}`);
+    redirect(
+      `/admin/orders/${order.id}?ok=${encodeURIComponent(`Order marked ${next.toLowerCase()}.`)}`,
+    );
   } catch (error) {
     const mapped = adminActionError(error);
     if (mapped) redirect(`${back}?error=${encodeURIComponent(mapped.error)}`);
@@ -564,26 +602,41 @@ export async function adminUpdateBooking(formData: FormData): Promise<void> {
     });
     if (!booking) redirect(`${back}?error=${encodeURIComponent("Booking not found.")}`);
 
-    let next: BookingStatus;
-    if (parsed.data.decision === "complete") {
-      if (booking.status !== BookingStatus.CONFIRMED) {
-        redirect(`${back}?error=${encodeURIComponent("Only confirmed sessions can be completed.")}`);
-      }
-      next = BookingStatus.COMPLETED;
-    } else if (parsed.data.decision === "no_show") {
-      if (booking.status !== BookingStatus.CONFIRMED) {
-        redirect(`${back}?error=${encodeURIComponent("Only confirmed sessions can be marked no-show.")}`);
-      }
-      next = BookingStatus.NO_SHOW;
-    } else {
-      if (
-        booking.status !== BookingStatus.PENDING_PAYMENT &&
-        booking.status !== BookingStatus.CONFIRMED
-      ) {
+    if (parsed.data.decision === "cancel") {
+      if (!shouldDeleteBookingToFreeSlot(booking.status)) {
         redirect(`${back}?error=${encodeURIComponent("This booking cannot be cancelled.")}`);
       }
-      next = BookingStatus.CANCELLED;
+      await prisma.booking.delete({ where: { id: booking.id } });
+      await writeAudit({
+        actorId: actor.id,
+        action: "booking.cancel",
+        entity: "Booking",
+        entityId: booking.id,
+        meta: {
+          from: booking.status,
+          deleted: true,
+          expertId: booking.expertId,
+          startsAt: booking.startsAt.toISOString(),
+        },
+      });
+      revalidatePath("/admin/bookings");
+      revalidatePath("/account/bookings");
+      redirect(`${back}?ok=${encodeURIComponent("Booking cancelled. The slot is free.")}`);
     }
+
+    if (booking.status !== BookingStatus.CONFIRMED) {
+      redirect(
+        `${back}?error=${encodeURIComponent(
+          parsed.data.decision === "complete"
+            ? "Only confirmed sessions can be completed."
+            : "Only confirmed sessions can be marked no-show.",
+        )}`,
+      );
+    }
+    const next =
+      parsed.data.decision === "complete"
+        ? BookingStatus.COMPLETED
+        : BookingStatus.NO_SHOW;
 
     await prisma.booking.update({
       where: { id: booking.id },

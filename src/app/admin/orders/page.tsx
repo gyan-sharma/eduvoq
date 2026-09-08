@@ -74,10 +74,10 @@ export default async function AdminOrdersPage({
                     </form>
                   ) : null}
                   <Link
-                    href={`/account/orders/${order.id}`}
+                    href={`/admin/orders/${order.id}`}
                     className="self-center text-sm text-emerald-800 hover:underline"
                   >
-                    Member view
+                    Details
                   </Link>
                 </div>
               </li>

@@ -1,4 +1,52 @@
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/server/db";
+
+type Tx = Prisma.TransactionClient;
+
+export type LockedEventRow = {
+  id: string;
+  slug: string;
+  published: boolean;
+  startsAt: Date;
+  endsAt: Date | null;
+  capacity: number | null;
+  pricePaise: number;
+};
+
+/** Lock the event row so concurrent registrations serialize on capacity. */
+export async function lockEventForUpdate(
+  tx: Tx,
+  eventId: string,
+): Promise<LockedEventRow | null> {
+  const rows = await tx.$queryRaw<
+    Array<{
+      id: string;
+      slug: string;
+      published: number | boolean;
+      startsAt: Date;
+      endsAt: Date | null;
+      capacity: number | null;
+      pricePaise: number;
+    }>
+  >`
+    SELECT id, slug, published, startsAt, endsAt, capacity, pricePaise
+    FROM Event
+    WHERE id = ${eventId}
+    FOR UPDATE
+  `;
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: row.id,
+    slug: row.slug,
+    published: Boolean(row.published),
+    startsAt: new Date(row.startsAt),
+    endsAt: row.endsAt ? new Date(row.endsAt) : null,
+    capacity: row.capacity,
+    pricePaise: row.pricePaise,
+  };
+}
 
 export type EventListItem = {
   id: string;

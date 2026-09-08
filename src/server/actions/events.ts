@@ -28,6 +28,7 @@ import {
 } from "@/server/admin";
 import { writeAudit } from "@/server/audit";
 import { prisma } from "@/server/db";
+import { lockEventForUpdate } from "@/server/events";
 import { isFlagEnabled } from "@/server/flags";
 import { requireActiveUser } from "@/server/rbac";
 
@@ -70,39 +71,49 @@ export async function registerForEvent(
 
   try {
     const user = await requireActiveUser();
-    const event = await prisma.event.findUnique({
-      where: { id: parsed.data.eventId },
-      include: { _count: { select: { registrations: true } } },
-    });
-    if (!event) return { error: "Event not found." };
-
-    const already = await prisma.eventRegistration.findUnique({
-      where: {
-        eventId_userId: { eventId: event.id, userId: user.id },
-      },
-    });
     const registrationEnabled = await isFlagEnabled("events_registration");
-    const decision = eventRegistrationStatus({
-      published: event.published,
-      registrationEnabled,
-      startsAt: event.startsAt,
-      endsAt: event.endsAt,
-      capacity: event.capacity,
-      registered: event._count.registrations,
-      alreadyRegistered: Boolean(already),
-      pricePaise: event.pricePaise,
-    });
-    if (!decision.ok) return { error: decision.error };
 
-    await prisma.eventRegistration.create({
-      data: {
-        eventId: event.id,
-        userId: user.id,
-        status: "REGISTERED",
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const event = await lockEventForUpdate(tx, parsed.data.eventId);
+        if (!event) return { error: "Event not found." } as const;
+
+        const already = await tx.eventRegistration.findUnique({
+          where: {
+            eventId_userId: { eventId: event.id, userId: user.id },
+          },
+        });
+        const registered = await tx.eventRegistration.count({
+          where: { eventId: event.id },
+        });
+        const decision = eventRegistrationStatus({
+          published: event.published,
+          registrationEnabled,
+          startsAt: event.startsAt,
+          endsAt: event.endsAt,
+          capacity: event.capacity,
+          registered,
+          alreadyRegistered: Boolean(already),
+          pricePaise: event.pricePaise,
+        });
+        if (!decision.ok) return { error: decision.error } as const;
+
+        await tx.eventRegistration.create({
+          data: {
+            eventId: event.id,
+            userId: user.id,
+            status: "REGISTERED",
+          },
+        });
+        return { slug: event.slug } as const;
       },
-    });
+      { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
+    );
+
+    if ("error" in result) return { error: result.error };
+
     revalidatePath("/events");
-    revalidatePath(`/events/${event.slug}`);
+    revalidatePath(`/events/${result.slug}`);
     return { ok: true, message: "You are registered." };
   } catch (error) {
     if (error instanceof Error && error.message === "UNAUTHORIZED") {

@@ -1,7 +1,14 @@
-import { OrderStatus, PostStatus, ResourceStatus, Role } from "@prisma/client";
+import {
+  BookingStatus,
+  OrderStatus,
+  PostStatus,
+  ResourceStatus,
+  Role,
+} from "@prisma/client";
 import { describe, expect, it } from "vitest";
 
 import {
+  canArchivePost,
   canBanUser,
   canGrantExpertRole,
   canPublishPost,
@@ -11,6 +18,7 @@ import {
   canSetFeatureFlag,
   cmsPublicPath,
   nextFulfillmentStatus,
+  shouldDeleteBookingToFreeSlot,
 } from "@/lib/admin-policy";
 import { FLAG_DEFAULTS, FLAG_KEYS } from "@/lib/flags";
 import { parseTipTapDoc, textFromTipTap } from "@/content/tiptap";
@@ -51,8 +59,19 @@ describe("admin policy", () => {
     expect(canPublishPost(PostStatus.IN_REVIEW)).toBe(true);
     expect(canRejectPost(PostStatus.IN_REVIEW)).toBe(true);
     expect(canPublishPost(PostStatus.PUBLISHED)).toBe(false);
+    expect(canArchivePost(PostStatus.PUBLISHED)).toBe(true);
+    expect(canArchivePost(PostStatus.IN_REVIEW)).toBe(false);
     expect(canPublishResource(ResourceStatus.IN_REVIEW)).toBe(true);
     expect(canPublishResource(ResourceStatus.PUBLISHED)).toBe(false);
+  });
+
+  it("deletes pending and confirmed bookings so the slot unique key is freed", () => {
+    expect(shouldDeleteBookingToFreeSlot(BookingStatus.PENDING_PAYMENT)).toBe(
+      true,
+    );
+    expect(shouldDeleteBookingToFreeSlot(BookingStatus.CONFIRMED)).toBe(true);
+    expect(shouldDeleteBookingToFreeSlot(BookingStatus.NO_SHOW)).toBe(false);
+    expect(shouldDeleteBookingToFreeSlot(BookingStatus.COMPLETED)).toBe(false);
   });
 
   it("maps CMS slugs to public paths", () => {

@@ -26,7 +26,7 @@ export const cmsPageSchema = z.object({
 
 export const moderatePostSchema = z.object({
   postId: z.string().min(1),
-  decision: z.enum(["publish", "reject"]),
+  decision: z.enum(["publish", "reject", "archive"]),
 });
 
 export const reportDecisionSchema = z.object({

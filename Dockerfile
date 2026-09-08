@@ -14,6 +14,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV AUTH_SECRET=build-placeholder-not-used
+ENV AUTH_URL=http://localhost:3000
+ENV DATABASE_URL=mysql://eduvoq:eduvoq@localhost:3306/eduvoq
 RUN corepack prepare pnpm@10.34.5 --activate && pnpm build
 
 FROM base AS runner

@@ -5,8 +5,12 @@ import {
   Role,
   UserStatus,
 } from "@prisma/client";
+import { hashPassword } from "../src/lib/password";
 
 const prisma = new PrismaClient();
+
+/** Dev-only seed credential. Never use this password in production. */
+const DEV_ADMIN_PASSWORD = "ChangeMe!admin";
 
 function richText(text: string) {
   return {
@@ -21,15 +25,17 @@ function richText(text: string) {
 }
 
 async function main() {
-  // passwordHash is left null on purpose: this PR does not add argon2.
-  // Auth.js (PR 04) hashes with @node-rs/argon2. Set the admin password after
-  // that lands, or via a one-off script — do not commit a real hash.
+  const passwordHash = await hashPassword(DEV_ADMIN_PASSWORD);
+
   await prisma.user.upsert({
     where: { email: "admin@eduvoq.com" },
     update: {
       username: "admin",
       role: Role.ADMIN,
       status: UserStatus.ACTIVE,
+      passwordHash,
+      emailVerified: new Date(),
+      dateOfBirth: new Date(Date.UTC(1990, 0, 1)),
     },
     create: {
       email: "admin@eduvoq.com",
@@ -38,6 +44,8 @@ async function main() {
       role: Role.ADMIN,
       status: UserStatus.ACTIVE,
       emailVerified: new Date(),
+      passwordHash,
+      dateOfBirth: new Date(Date.UTC(1990, 0, 1)),
     },
   });
 

@@ -29,11 +29,12 @@ services:
     build: .
     environment:
       DATABASE_URL: mysql://eduvoq:eduvoq@mysql:3306/eduvoq
-      AUTH_SECRET: devsecret
+      AUTH_SECRET: ${AUTH_SECRET:-devsecret-change-me-not-for-prod}
       # Override via .env AUTH_URL (Caddy :80 → http://localhost).
       AUTH_URL: ${AUTH_URL:-http://localhost:3000}
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
+      EMAIL_FROM: ${EMAIL_FROM:-hello@eduvoq.com}
       PORT: 3000
     depends_on:
       mysql:

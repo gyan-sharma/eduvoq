@@ -20,7 +20,7 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-MySQL is not required for `pnpm dev` or `pnpm build` in this foundation stage.
+Auth pages (`/login`, `/register`, `/forgot-password`, `/verify-email`, `/complete-profile`) need MySQL for real sign-in. `pnpm build` still works with dummy `DATABASE_URL` / `AUTH_SECRET`.
 
 ## Run with Docker Compose (dev)
 
@@ -40,6 +40,8 @@ docker compose up --build
 
 Compose substitutes `AUTH_URL` from `.env` (default `http://localhost:3000` for direct Next). For Caddy on `:80`, set `AUTH_URL=http://localhost` in `.env`.
 
+After MySQL is up: `pnpm db:migrate && pnpm db:seed`. Dev admin is `admin@eduvoq.com` / `ChangeMe!admin` (dev-only; change before any shared environment). Verification and reset emails go to Mailpit when `SMTP_HOST` is set; otherwise the link is logged.
+
 ## Scripts
 
 | Command | Description |
@@ -48,5 +50,7 @@ Compose substitutes `AUTH_URL` from `.env` (default `http://localhost:3000` for 
 | `pnpm build` | Production build (`output: "standalone"`) |
 | `pnpm start` | Run the production server |
 | `pnpm lint` | ESLint (`next/core-web-vitals`) |
+| `pnpm test` | Vitest (age-gate unit tests) |
+| `pnpm db:seed` | Seed admin, catalog, consultation services |
 
 Do not commit secrets or the `chalknpencil-archive/` snapshot.

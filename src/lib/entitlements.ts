@@ -46,10 +46,8 @@ export function authorizeFileAccess(args: {
 }): FileAccessDecision {
   const { file, resource, user } = args;
 
-  if (file.acl === FileAcl.PUBLIC) {
-    return "allow";
-  }
-
+  // Resource rows always use status + visibility. FileAcl.PUBLIC must not
+  // publish an IN_REVIEW or EDUCATOR_ONLY PDF.
   if (file.ownerType === FileOwnerType.RESOURCE) {
     if (!resource) return "not_found";
 
@@ -75,6 +73,10 @@ export function authorizeFileAccess(args: {
     // SUBSCRIBER is unused in v1.
     if (!user) return "login";
     return "forbidden";
+  }
+
+  if (file.acl === FileAcl.PUBLIC) {
+    return "allow";
   }
 
   if (!user) return "login";

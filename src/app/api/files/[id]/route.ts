@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { FileAcl, UserStatus } from "@prisma/client";
+import { UserStatus } from "@prisma/client";
 import { auth } from "@/auth";
 import { authorizeFileAccess } from "@/lib/entitlements";
 import { isAllowedMime } from "@/lib/storage/limits";
@@ -85,28 +85,30 @@ export async function GET(
   }
 
   const filename = objectKeyFilename(file.objectKey);
-  const inline = file.acl === FileAcl.PUBLIC && file.mimeType.startsWith("image/");
+  const publiclyServed =
+    authorizeFileAccess({
+      file,
+      resource: file.resourceAsFile,
+      user: null,
+    }) === "allow";
+  const inline = publiclyServed && file.mimeType.startsWith("image/");
   const headers = new Headers({
     "Content-Type": file.mimeType,
     "Content-Length": String(file.byteSize),
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy": "default-src 'none'; sandbox",
     "X-Frame-Options": "DENY",
-    "Cache-Control":
-      file.acl === FileAcl.PUBLIC ? "public, max-age=86400" : "private, no-store",
+    "Cache-Control": publiclyServed
+      ? "public, max-age=86400"
+      : "private, no-store",
     "Content-Disposition": contentDisposition(filename, inline),
   });
 
-  const storage = getStorage();
-  if (storage.name === "s3" && process.env.S3_PUBLIC_ENDPOINT) {
-    const presigned = await storage.presignGet(file.objectKey, 60);
-    if (presigned) {
-      return NextResponse.redirect(presigned);
-    }
-  }
-
+  // Always stream through this handler. Never 302 to a MinIO/S3 presign —
+  // PRIVATE/EDUCATOR_ONLY PDFs must not get a world-fetchable object URL,
+  // and the attachment/nosniff/CSP headers have to stay on the response.
   try {
-    const stream = await storage.getStream(file.objectKey);
+    const stream = await getStorage().getStream(file.objectKey);
     return new Response(stream, { status: 200, headers });
   } catch (error) {
     if (error instanceof StorageNotFoundError) {

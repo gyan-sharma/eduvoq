@@ -116,4 +116,36 @@ describe("authorizeFileAccess", () => {
       }),
     ).toBe("allow");
   });
+
+  it("does not treat FileAcl.PUBLIC as a resource entitlement bypass", () => {
+    const publicAcl = { ...file, acl: FileAcl.PUBLIC };
+    expect(
+      authorizeFileAccess({
+        file: publicAcl,
+        resource: published,
+        user: null,
+      }),
+    ).toBe("login");
+    expect(
+      authorizeFileAccess({
+        file: publicAcl,
+        resource: published,
+        user: parent,
+      }),
+    ).toBe("forbidden");
+    expect(
+      authorizeFileAccess({
+        file: publicAcl,
+        resource: published,
+        user: educator,
+      }),
+    ).toBe("allow");
+    expect(
+      authorizeFileAccess({
+        file: publicAcl,
+        resource: { ...published, status: ResourceStatus.IN_REVIEW },
+        user: { id: "other", role: Role.EDUCATOR, status: UserStatus.ACTIVE },
+      }),
+    ).toBe("not_found");
+  });
 });

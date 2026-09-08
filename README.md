@@ -37,11 +37,11 @@ docker compose up --build
 - App direct: [http://localhost:3000](http://localhost:3000)
 - Mailpit UI: [http://localhost:8025](http://localhost:8025) (SMTP `localhost:1025`)
 - MySQL: `localhost:3306` (user/password/database: `eduvoq`)
-- MinIO API: [http://localhost:9000](http://localhost:9000) (console `:9001`, user `minio` / `miniopass`)
+- MinIO API: [http://127.0.0.1:9000](http://127.0.0.1:9000) (loopback only; console `:9001`, user `minio` / `miniopass`)
 - Liveness: [http://localhost/api/health](http://localhost/api/health)
 - Readiness: [http://localhost/api/ready](http://localhost/api/ready)
 
-Compose sets `FILE_DRIVER=s3` against MinIO. The app creates the `eduvoq` bucket on first upload.
+Compose sets `FILE_DRIVER=s3` against MinIO. The app creates the `eduvoq` bucket on first upload. Downloads always stream through `GET /api/files/[id]` (no presigned MinIO redirect).
 
 Compose substitutes `AUTH_URL` from `.env` (default `http://localhost:3000` for direct Next). For Caddy on `:80`, set `AUTH_URL=http://localhost` in `.env`.
 

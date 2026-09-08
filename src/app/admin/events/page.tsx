@@ -20,7 +20,7 @@ export default async function AdminEventsPage({
   });
 
   return (
-    <main>
+    <div>
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
@@ -60,6 +60,6 @@ export default async function AdminEventsPage({
           ))}
         </ul>
       )}
-    </main>
+    </div>
   );
 }

@@ -58,7 +58,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="flex min-h-screen flex-col antialiased">
         <SkipLink />
         <Header />
-        <main id="main" tabIndex={-1} className="flex-1 outline-none">
+        <main
+          id="main"
+          tabIndex={-1}
+          className="flex-1 focus:ring-2 focus:ring-ring/50 focus:outline-none"
+        >
           {children}
         </main>
         <Footer />

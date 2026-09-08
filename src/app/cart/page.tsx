@@ -38,7 +38,7 @@ export default async function CartPage() {
   const hasPhysical = items.some((item) => item.product.type === "PHYSICAL");
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <p className="text-sm text-stone-600">
         <Link href="/store" className="text-emerald-800 hover:underline">
           ← Store
@@ -135,6 +135,6 @@ export default async function CartPage() {
           )}
         </div>
       ) : null}
-    </main>
+    </div>
   );
 }

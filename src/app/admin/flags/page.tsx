@@ -20,7 +20,7 @@ export default async function AdminFlagsPage({
   const canEdit = actor.role === Role.ADMIN;
 
   return (
-    <main>
+    <div>
       <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
         Feature flags
       </h1>
@@ -62,6 +62,6 @@ export default async function AdminFlagsPage({
           </li>
         ))}
       </ul>
-    </main>
+    </div>
   );
 }

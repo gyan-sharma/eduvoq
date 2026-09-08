@@ -58,7 +58,7 @@ export default async function AdminDashboardPage() {
   ];
 
   return (
-    <main>
+    <div>
       <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
         Admin
       </h1>
@@ -103,6 +103,6 @@ export default async function AdminDashboardPage() {
           </ul>
         )}
       </section>
-    </main>
+    </div>
   );
 }

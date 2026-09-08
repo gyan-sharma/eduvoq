@@ -31,7 +31,7 @@ export default async function AdminPostPreviewPage({
   const publicWhenPublished = post.status === PostStatus.PUBLISHED;
 
   return (
-    <main>
+    <div>
       <p className="text-sm text-stone-600">
         <Link href="/admin/posts" className="text-emerald-800 hover:underline">
           ← Queue
@@ -93,6 +93,6 @@ export default async function AdminPostPreviewPage({
           </Link>
         ) : null}
       </div>
-    </main>
+    </div>
   );
 }

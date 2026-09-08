@@ -32,7 +32,7 @@ export default async function AdminPostsPage({
   });
 
   return (
-    <main>
+    <div>
       <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
         Post moderation
       </h1>
@@ -73,6 +73,6 @@ export default async function AdminPostsPage({
           ))}
         </ul>
       )}
-    </main>
+    </div>
   );
 }

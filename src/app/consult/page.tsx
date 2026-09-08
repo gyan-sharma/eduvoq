@@ -21,7 +21,7 @@ export default async function ConsultIndexPage() {
   });
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-12">
+    <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-12">
       <p className="text-sm font-medium uppercase tracking-wide text-emerald-800">
         Consulting services
       </p>
@@ -73,6 +73,6 @@ export default async function ConsultIndexPage() {
         </a>
         . Expert access is granted by EduVoq staff.
       </p>
-    </main>
+    </div>
   );
 }

@@ -28,7 +28,7 @@ export default async function AccountWalletPage() {
   const balancePaise = account?.balancePaise ?? 0;
 
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-12">
+    <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-12">
       <p className="text-sm text-stone-600">
         <Link href="/account" className="text-emerald-800 hover:underline">
           ← Account
@@ -73,6 +73,6 @@ export default async function AccountWalletPage() {
       ) : (
         <p className="mt-6 text-sm text-stone-500">No wallet movements yet.</p>
       )}
-    </main>
+    </div>
   );
 }

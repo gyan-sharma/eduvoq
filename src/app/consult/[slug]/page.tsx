@@ -48,7 +48,7 @@ export default async function ConsultDetailPage({
   const loginHref = `/login?callbackUrl=${encodeURIComponent(bookHref)}`;
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12">
+    <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-12">
       <p className="text-sm text-stone-600">
         <Link href="/consult" className="text-emerald-800 hover:underline">
           ← All consultations
@@ -98,6 +98,6 @@ export default async function ConsultDetailPage({
           Other services
         </Link>
       </div>
-    </main>
+    </div>
   );
 }

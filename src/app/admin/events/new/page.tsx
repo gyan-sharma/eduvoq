@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "New event | Admin" };
 
 export default function AdminNewEventPage() {
   return (
-    <main>
+    <div>
       <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
         New event
       </h1>
@@ -16,6 +16,6 @@ export default function AdminNewEventPage() {
       <div className="mt-6 max-w-2xl">
         <EventForm />
       </div>
-    </main>
+    </div>
   );
 }

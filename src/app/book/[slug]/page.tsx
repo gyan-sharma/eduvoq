@@ -39,13 +39,13 @@ export default async function BookPage({ params }: { params: Promise<Params> }) 
   }
   if (user.role === Role.STUDENT) {
     return (
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-12">
+      <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-12">
         <h1 className="text-2xl font-semibold text-stone-900">Booking</h1>
         <p className="mt-3 text-sm text-stone-600">
           Student accounts cannot book consultations. Ask a parent or guardian
           to book from their account.
         </p>
-      </main>
+      </div>
     );
   }
 
@@ -67,7 +67,7 @@ export default async function BookPage({ params }: { params: Promise<Params> }) 
     : [];
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12">
+    <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-12">
       <p className="text-sm text-stone-600">
         <Link
           href={`/consult/${service.slug}`}
@@ -92,6 +92,6 @@ export default async function BookPage({ params }: { params: Promise<Params> }) 
           <BookForm serviceSlug={service.slug} slots={slots} />
         </div>
       )}
-    </main>
+    </div>
   );
 }

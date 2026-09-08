@@ -12,7 +12,7 @@ export default async function AdminAuditPage() {
   });
 
   return (
-    <main>
+    <div>
       <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
         Audit log
       </h1>
@@ -53,6 +53,6 @@ export default async function AdminAuditPage() {
           </table>
         </div>
       )}
-    </main>
+    </div>
   );
 }

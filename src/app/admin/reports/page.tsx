@@ -22,7 +22,7 @@ export default async function AdminReportsPage({
   });
 
   return (
-    <main>
+    <div>
       <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
         Reports queue
       </h1>
@@ -66,6 +66,6 @@ export default async function AdminReportsPage({
           ))}
         </ul>
       )}
-    </main>
+    </div>
   );
 }

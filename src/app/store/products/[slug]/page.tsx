@@ -68,7 +68,7 @@ export default async function ProductPage({
   else if (physicalBlocked) disabledReason = "Physical shipping is paused.";
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <p className="text-sm text-stone-600">
         <Link href="/store" className="text-emerald-800 hover:underline">
           ← All products
@@ -138,6 +138,6 @@ export default async function ProductPage({
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

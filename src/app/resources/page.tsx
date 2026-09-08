@@ -34,7 +34,7 @@ export default async function ResourcesHubPage() {
   if (!user) redirect("/login");
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
+    <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
       <p className="text-xs font-medium uppercase tracking-wide text-emerald-800">
         Resource Corner
       </p>
@@ -66,6 +66,6 @@ export default async function ResourcesHubPage() {
         </Link>
         .
       </p>
-    </main>
+    </div>
   );
 }

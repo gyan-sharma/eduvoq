@@ -25,7 +25,7 @@ export default async function AdminResourcesPage({
   });
 
   return (
-    <main>
+    <div>
       <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
         Resource review
       </h1>
@@ -75,6 +75,6 @@ export default async function AdminResourcesPage({
           ))}
         </ul>
       )}
-    </main>
+    </div>
   );
 }

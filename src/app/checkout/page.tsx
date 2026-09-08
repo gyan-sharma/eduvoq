@@ -45,7 +45,7 @@ export default async function CheckoutPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <p className="text-sm text-stone-600">
         <Link href="/cart" className="text-emerald-800 hover:underline">
           ← Cart
@@ -89,6 +89,6 @@ export default async function CheckoutPage() {
           />
         </div>
       )}
-    </main>
+    </div>
   );
 }

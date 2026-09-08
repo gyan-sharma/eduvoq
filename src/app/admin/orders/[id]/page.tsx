@@ -34,7 +34,7 @@ export default async function AdminOrderDetailPage({
   const nextLabel = fulfillmentLabel(order.status);
 
   return (
-    <main>
+    <div>
       <p className="text-sm text-stone-600">
         <Link href="/admin/orders" className="text-emerald-800 hover:underline">
           ← Orders
@@ -139,6 +139,6 @@ export default async function AdminOrderDetailPage({
           </button>
         </form>
       ) : null}
-    </main>
+    </div>
   );
 }

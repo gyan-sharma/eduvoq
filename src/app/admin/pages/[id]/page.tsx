@@ -20,7 +20,7 @@ export default async function AdminEditPagePage({
   if (!page) notFound();
 
   return (
-    <main>
+    <div>
       <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
         Edit {page.title}
       </h1>
@@ -30,6 +30,6 @@ export default async function AdminEditPagePage({
       <div className="mt-6 max-w-2xl">
         <CmsPageForm page={page} />
       </div>
-    </main>
+    </div>
   );
 }

@@ -25,7 +25,7 @@ export default async function AccountPage() {
       : [];
 
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-12">
+    <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-12">
       <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
         My account
       </h1>
@@ -106,6 +106,6 @@ export default async function AccountPage() {
           </div>
         </section>
       ) : null}
-    </main>
+    </div>
   );
 }

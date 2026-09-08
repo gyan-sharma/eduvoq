@@ -46,7 +46,7 @@ export default async function AdminUsersPage({
   });
 
   return (
-    <main>
+    <div>
       <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
         Users
       </h1>
@@ -139,6 +139,6 @@ export default async function AdminUsersPage({
           <p className="px-4 py-6 text-sm text-stone-600">No users match.</p>
         ) : null}
       </div>
-    </main>
+    </div>
   );
 }

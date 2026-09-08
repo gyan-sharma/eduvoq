@@ -24,11 +24,11 @@ www.eduvoq.com {
 }
 
 eduvoq.com {
-  redir https://www.eduvoq.com{uri}
+  redir https://www.eduvoq.com{uri} 301
 }
 ```
 
-Path-level Wix aliases live in `redirects.json` (Next 301s). Caddy only needs host-level apex → www.
+Bare `redir` is a **302**. The trailing `301` is required so apex is a permanent canonical redirect. This branch has only `caddy/Caddyfile.local` (dev `:80`); paste the snippet above into `/etc/caddy/sites/eduvoq.caddy` on neojn. Path-level Wix aliases live in `redirects.json` (Next 301s).
 
 ## Phased cutover from Wix
 

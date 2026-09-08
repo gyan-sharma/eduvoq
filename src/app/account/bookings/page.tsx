@@ -79,7 +79,7 @@ export default async function AccountBookingsPage({
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12">
+    <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-12">
       <p className="text-sm text-stone-600">
         <Link href="/account" className="text-emerald-800 hover:underline">
           ← Account
@@ -213,6 +213,6 @@ export default async function AccountBookingsPage({
           )}
         </section>
       ) : null}
-    </main>
+    </div>
   );
 }

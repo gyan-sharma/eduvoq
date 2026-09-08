@@ -27,7 +27,7 @@ export default async function AdminOrdersPage({
   });
 
   return (
-    <main>
+    <div>
       <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
         Orders
       </h1>
@@ -85,6 +85,6 @@ export default async function AdminOrdersPage({
           })}
         </ul>
       )}
-    </main>
+    </div>
   );
 }

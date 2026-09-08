@@ -29,7 +29,7 @@ export default async function AdminEditEventPage({
   if (!event) notFound();
 
   return (
-    <main>
+    <div>
       <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
         Edit {event.title}
       </h1>
@@ -62,6 +62,6 @@ export default async function AdminEditEventPage({
           </ul>
         )}
       </section>
-    </main>
+    </div>
   );
 }

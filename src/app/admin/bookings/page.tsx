@@ -31,7 +31,7 @@ export default async function AdminBookingsPage({
   });
 
   return (
-    <main>
+    <div>
       <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
         Bookings
       </h1>
@@ -93,6 +93,6 @@ export default async function AdminBookingsPage({
           ))}
         </ul>
       )}
-    </main>
+    </div>
   );
 }

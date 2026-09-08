@@ -70,9 +70,15 @@ export function rateLimitAuthPaths(req: NextRequest): NextResponse | null {
 
 const resetWindows = new Map<string, number[]>();
 const blogSubmitWindows = new Map<string, number[]>();
+const aiAssistWindows = new Map<string, number[]>();
+const forumWindows = new Map<string, number[]>();
 
-function allowPerHour(store: Map<string, number[]>, key: string, max: number) {
-  const now = Date.now();
+function allowPerHour(
+  store: Map<string, number[]>,
+  key: string,
+  max: number,
+  now = Date.now(),
+) {
   const windowMs = 60 * 60 * 1000;
   const stamps = (store.get(key) ?? []).filter((t) => now - t < windowMs);
   if (stamps.length >= max) {
@@ -92,4 +98,18 @@ export function allowPasswordResetForEmail(email: string): boolean {
 /** Member blog submit: 5 / hour / user (in-memory, single replica). */
 export function allowBlogSubmitForUser(userId: string): boolean {
   return allowPerHour(blogSubmitWindows, userId, 5);
+}
+
+/** Optional AI assistants: 10 / hour / user (in-memory, single replica). */
+export function allowAiAssistForUser(userId: string): boolean {
+  return allowPerHour(aiAssistWindows, userId, 10);
+}
+
+/** Forum writes: 8 / hour / user (in-memory, single replica). */
+export function allowForumWrite(
+  userId: string,
+  limit = 8,
+  now = Date.now(),
+): boolean {
+  return allowPerHour(forumWindows, userId, limit, now);
 }

@@ -8,8 +8,6 @@ const PROTECTED = [
   /^\/resources(\/|$)/,
   /^\/notifications(\/|$)/,
   /^\/book(\/|$)/,
-  /^\/community(\/|$)/,
-  /^\/groups(\/|$)/,
   /^\/cart(\/|$)/,
   /^\/checkout(\/|$)/,
   /^\/complete-profile(\/|$)/,

@@ -89,11 +89,14 @@ export function textFromTipTap(value: unknown): string {
   }
   if (!isNode(value)) return "";
   if (value.text) return value.text;
-  const joined = (value.content ?? []).map(textFromTipTap).join(
-    value.type === "paragraph" || value.type === "heading" || value.type === "listItem"
-      ? "\n"
-      : "",
-  );
+  const block =
+    value.type === "doc" ||
+    value.type === "bulletList" ||
+    value.type === "orderedList" ||
+    value.type === "listItem";
+  const joined = (value.content ?? [])
+    .map(textFromTipTap)
+    .join(block ? "\n" : "");
   return joined.replace(/\n{3,}/g, "\n\n").trim();
 }
 

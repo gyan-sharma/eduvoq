@@ -83,9 +83,11 @@ describe("admin policy", () => {
 describe("flags catalog", () => {
   it("includes events_registration and commerce_physical defaults", () => {
     expect(FLAG_KEYS).toContain("events_registration");
+    expect(FLAG_KEYS).toContain("demo_mode");
     expect(FLAG_DEFAULTS.events_registration).toBe(true);
     expect(FLAG_DEFAULTS.commerce_physical).toBe(true);
     expect(FLAG_DEFAULTS.wallet_spend).toBe(false);
+    expect(FLAG_DEFAULTS.demo_mode).toBe(false);
   });
 });
 

@@ -6,9 +6,12 @@ import { auth } from "@/auth";
 import { BlogSubmitForm } from "@/components/blog-submit-form";
 import { MarketingPage } from "@/components/marketing-page";
 import { Button } from "@/components/ui/button";
+import { canUseBlogDraftHelper } from "@/lib/ai/access";
+import { isAiAvailable } from "@/lib/ai/enabled";
 import { CONTACT_EMAIL } from "@/lib/nav";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export const metadata: Metadata = {
   title: "Submit your blog",
@@ -22,6 +25,12 @@ export default async function BlogSubmitPage() {
   const user = session?.user;
   const canSubmit =
     user?.status === UserStatus.ACTIVE && user.role !== Role.STUDENT;
+  const showBlogAi =
+    canSubmit &&
+    canUseBlogDraftHelper(
+      user ? { role: user.role, status: user.status } : null,
+    ) &&
+    (await isAiAvailable());
 
   return (
     <MarketingPage
@@ -39,7 +48,7 @@ export default async function BlogSubmitPage() {
         .
       </p>
       {canSubmit ? (
-        <BlogSubmitForm />
+        <BlogSubmitForm aiAvailable={showBlogAi} />
       ) : user?.status === UserStatus.PENDING_PROFILE ? (
         <LoginCta
           title="Finish your profile first"

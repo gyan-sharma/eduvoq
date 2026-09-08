@@ -664,7 +664,8 @@ export async function setFeatureFlag(formData: FormData): Promise<void> {
     key: String(formData.get("key") ?? ""),
     enabled: formBool(formData.get("enabled")),
   });
-  const back = "/admin/flags";
+  const nextRaw = String(formData.get("next") ?? "");
+  const back = nextRaw === "/admin" ? "/admin" : "/admin/flags";
   if (!parsed.success) {
     redirect(`${back}?error=${encodeURIComponent(firstZodError(parsed.error))}`);
   }
@@ -690,7 +691,12 @@ export async function setFeatureFlag(formData: FormData): Promise<void> {
       meta: { enabled: parsed.data.enabled },
     });
     revalidatePath("/admin/flags");
+    revalidatePath("/admin");
     revalidatePath("/");
+    revalidatePath("/forum");
+    revalidatePath("/community");
+    revalidatePath("/groups");
+    revalidatePath("/members");
     redirect(
       `${back}?ok=${encodeURIComponent(
         `${parsed.data.key} ${parsed.data.enabled ? "enabled" : "disabled"}.`,

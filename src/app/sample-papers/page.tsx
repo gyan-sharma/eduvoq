@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { ResourceKind } from "@prisma/client";
 import { auth } from "@/auth";
+import { LessonPlanAssistant } from "@/components/ai/lesson-plan-assistant";
 import { ResourcePageShell } from "@/components/resources/resource-page-shell";
+import { canUseLessonPlanAssistant } from "@/lib/ai/access";
+import { isAiAvailable } from "@/lib/ai/enabled";
 import { hasEducatorLibraryAccess } from "@/lib/entitlements";
 import { parseResourceSearch } from "@/lib/resource-query";
 import { prisma } from "@/server/db";
@@ -33,6 +36,8 @@ export default async function PublicSamplePapersPage({
   });
 
   const entitled = hasEducatorLibraryAccess(user);
+  const showLessonAi =
+    canUseLessonPlanAssistant(user) && (await isAiAvailable());
   const loginHref = session?.user
     ? undefined
     : "/login?callbackUrl=/sample-papers";
@@ -50,6 +55,7 @@ export default async function PublicSamplePapersPage({
       canUpload={false}
       loginHref={loginHref}
       empty="No published sample papers or lesson plans yet."
+      assistant={showLessonAi ? <LessonPlanAssistant /> : null}
       teaser={
         entitled
           ? undefined

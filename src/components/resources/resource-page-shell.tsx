@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { ResourceKind } from "@prisma/client";
 import { ResourceFilters } from "@/components/resources/resource-filters";
 import { ResourceList } from "@/components/resources/resource-list";
@@ -19,6 +20,7 @@ export function ResourcePageShell({
   loginHref,
   empty,
   teaser,
+  assistant,
 }: {
   title: string;
   description: string;
@@ -34,6 +36,7 @@ export function ResourcePageShell({
   loginHref?: string;
   empty: string;
   teaser?: string;
+  assistant?: ReactNode;
 }) {
   return (
     <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
@@ -58,6 +61,8 @@ export function ResourcePageShell({
         loginHref={loginHref}
         empty={empty}
       />
+
+      {assistant}
 
       {canUpload && defaultKind ? (
         <section className="mt-10 rounded-xl border border-stone-200 bg-white p-6">

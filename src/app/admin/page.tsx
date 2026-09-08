@@ -6,13 +6,26 @@ import {
   PostStatus,
   ReportStatus,
   ResourceStatus,
+  Role,
 } from "@prisma/client";
 
+import { AdminFlash } from "@/components/admin/flash";
+import { DemoModeCard } from "@/components/admin/demo-mode-card";
+import { FLAG_DEMO_MODE } from "@/lib/flags";
+import { requireStaffPage } from "@/server/admin";
 import { prisma } from "@/server/db";
+import { isFlagEnabled } from "@/server/flags";
 
 export const metadata: Metadata = { title: "Admin | EduVoq" };
 
-export default async function AdminDashboardPage() {
+export default async function AdminDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ok?: string; error?: string }>;
+}) {
+  const actor = await requireStaffPage();
+  const { ok, error } = await searchParams;
+  const demoEnabled = await isFlagEnabled(FLAG_DEMO_MODE);
   const [
     users,
     inReviewPosts,
@@ -65,6 +78,16 @@ export default async function AdminDashboardPage() {
       <p className="mt-1 text-sm text-stone-600">
         Staff console for users, content, bookings, orders, and flags.
       </p>
+      <div className="mt-4">
+        <AdminFlash ok={ok} error={error} />
+      </div>
+      <div className="mt-6">
+        <DemoModeCard
+          enabled={demoEnabled}
+          canEdit={actor.role === Role.ADMIN}
+          next="/admin"
+        />
+      </div>
       <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (
           <li key={card.href}>

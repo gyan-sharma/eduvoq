@@ -381,19 +381,21 @@ model PostTag {
 }
 
 model Comment {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   postId     String?
   threadId   String?
   feedPostId String?
   parentId   String?
   authorId   String
-  body       String   @db.Text
-  status     String   @default("VISIBLE") // VISIBLE HIDDEN SPAM
-  createdAt  DateTime @default(now())
-  author     User     @relation(fields: [authorId], references: [id])
-  post       Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  body       String    @db.Text
+  status     String    @default("VISIBLE") // VISIBLE HIDDEN SPAM
+  createdAt  DateTime  @default(now())
+  author     User      @relation(fields: [authorId], references: [id])
+  post       Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  feedPost   FeedPost? @relation(fields: [feedPostId], references: [id], onDelete: Cascade)
 
   @@index([postId, createdAt])
+  @@index([feedPostId, createdAt])
 }
 
 model CmsPage {
@@ -494,11 +496,12 @@ model PollVote {
 }
 
 model FeedPost {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   authorId  String
   bodyJson  Json
-  createdAt DateTime @default(now())
-  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime  @default(now())
+  author    User      @relation(fields: [authorId], references: [id])
+  comments  Comment[]
 
   @@index([createdAt])
 }

@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ResourceKind } from "@prisma/client";
+import { LessonPlanAssistant } from "@/components/ai/lesson-plan-assistant";
 import { ResourcePageShell } from "@/components/resources/resource-page-shell";
+import { canUseLessonPlanAssistant } from "@/lib/ai/access";
+import { isAiAvailable } from "@/lib/ai/enabled";
 import { canUploadResource, hasEducatorLibraryAccess } from "@/lib/entitlements";
 import { parseResourceSearch } from "@/lib/resource-query";
 import { requireSession } from "@/server/rbac";
@@ -44,6 +47,11 @@ export default async function MemberSamplePapersPage({
       canUpload={canUploadResource(user)}
       defaultKind={ResourceKind.SAMPLE_PAPER}
       kindOptions={[ResourceKind.SAMPLE_PAPER, ResourceKind.LESSON_PLAN]}
+      assistant={
+        canUseLessonPlanAssistant(user) && (await isAiAvailable()) ? (
+          <LessonPlanAssistant />
+        ) : null
+      }
       empty="No sample papers or lesson plans match these filters yet."
     />
   );

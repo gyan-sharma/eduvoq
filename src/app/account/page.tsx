@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Role } from "@prisma/client";
+import { ChildPrivacyForm } from "@/components/account/child-privacy-form";
 import { CreateChildForm } from "@/components/auth/create-child-form";
 import { signOutAction } from "@/server/actions/auth";
 import { prisma } from "@/server/db";
@@ -19,7 +20,14 @@ export default async function AccountPage() {
     user.role === Role.PARENT
       ? await prisma.user.findMany({
           where: { parentId: user.id },
-          select: { id: true, name: true, username: true, email: true },
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            email: true,
+            isProfilePublic: true,
+            classesTaught: true,
+          },
           orderBy: { createdAt: "asc" },
         })
       : [];
@@ -92,11 +100,14 @@ export default async function AccountPage() {
             not verifiable DPDP consent.
           </p>
           {children.length > 0 ? (
-            <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-stone-700">
+            <ul className="mt-4 space-y-4">
               {children.map((child) => (
                 <li key={child.id}>
-                  {child.name} ({child.email}
-                  {child.username ? ` · @${child.username}` : ""})
+                  <p className="text-sm text-stone-700">
+                    {child.name} ({child.email}
+                    {child.username ? ` · @${child.username}` : ""})
+                  </p>
+                  <ChildPrivacyForm child={child} />
                 </li>
               ))}
             </ul>

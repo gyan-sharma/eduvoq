@@ -1,3 +1,8 @@
+export {
+  plainTextToDoc,
+  textFromTipTap,
+} from "@/content/tiptap";
+
 export function jsonPlainText(value: unknown): string {
   if (typeof value === "string") return value;
   if (!value || typeof value !== "object") return "";

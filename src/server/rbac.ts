@@ -25,12 +25,25 @@ export async function requireSession(): Promise<User> {
   return user;
 }
 
+export async function getSessionUser(): Promise<User | null> {
+  try {
+    return await requireSession();
+  } catch {
+    return null;
+  }
+}
+
 export async function requireActiveUser(): Promise<User> {
   const user = await requireSession();
   if (user.status !== UserStatus.ACTIVE) {
     throw new Error("FORBIDDEN");
   }
   return user;
+}
+
+/** Alias used by profile, forum, and community actions. */
+export async function requireActiveMember(): Promise<User> {
+  return requireActiveUser();
 }
 
 export async function requireRole(...roles: Role[]): Promise<User> {

@@ -67,6 +67,7 @@ async function main() {
     ["wallet_spend", false],
     ["ai_assistants", false],
     ["events_registration", true],
+    ["demo_mode", false],
   ] as const;
 
   for (const [key, enabled] of flags) {
@@ -337,6 +338,111 @@ async function main() {
 
   // Do not seed Wix event boilerplate (annual-science-fair / spring-is-here-field-trip).
   // Staff create events in /admin/events with original copy.
+
+  const forumCategories = [
+    {
+      slug: "curriculum-development",
+      name: "Curriculum Development",
+      description:
+        "Share schemes of work, unit plans, and how you adapt the syllabus.",
+      sortOrder: 0,
+    },
+    {
+      slug: "classroom-management",
+      name: "Classroom Management",
+      description:
+        "Routines, behaviour, grouping, and the day-to-day of a K-12 classroom.",
+      sortOrder: 1,
+    },
+    {
+      slug: "pedagogical-strategies",
+      name: "Pedagogical Strategies",
+      description:
+        "How we teach: inquiry, differentiation, NEP-aligned practice.",
+      sortOrder: 2,
+    },
+    {
+      slug: "assessments-boards",
+      name: "Assessments & Boards",
+      description: "CBSE, ICSE, IB, and Kendriya Vidyalaya assessment practice.",
+      sortOrder: 3,
+    },
+    {
+      slug: "career-jobs",
+      name: "Career & Jobs",
+      description: "Roles, transfers, and professional growth for educators.",
+      sortOrder: 4,
+    },
+    {
+      slug: "general",
+      name: "General",
+      description: "Anything else for the EduVoq community.",
+      sortOrder: 5,
+    },
+  ] as const;
+
+  for (const category of forumCategories) {
+    await prisma.forumCategory.upsert({
+      where: { slug: category.slug },
+      update: {
+        name: category.name,
+        description: category.description,
+        sortOrder: category.sortOrder,
+      },
+      create: {
+        slug: category.slug,
+        name: category.name,
+        description: category.description,
+        sortOrder: category.sortOrder,
+      },
+    });
+  }
+
+  const jobAlerts = await prisma.group.upsert({
+    where: { slug: "job-alerts" },
+    update: {
+      name: "Job Alerts",
+      description:
+        "Openings, circulars, and transfer notes for school teachers across boards.",
+      isOfficial: true,
+      createdById: admin.id,
+    },
+    create: {
+      slug: "job-alerts",
+      name: "Job Alerts",
+      description:
+        "Openings, circulars, and transfer notes for school teachers across boards.",
+      isOfficial: true,
+      createdById: admin.id,
+    },
+  });
+
+  const socialNetwork = await prisma.group.upsert({
+    where: { slug: "social-network" },
+    update: {
+      name: "Social Network",
+      description:
+        "Share thoughts, classroom practice, and polls with other educators.",
+      isOfficial: true,
+      createdById: admin.id,
+    },
+    create: {
+      slug: "social-network",
+      name: "Social Network",
+      description:
+        "Share thoughts, classroom practice, and polls with other educators.",
+      isOfficial: true,
+      createdById: admin.id,
+    },
+  });
+
+  for (const group of [jobAlerts, socialNetwork]) {
+    await prisma.groupMember.upsert({
+      where: { groupId_userId: { groupId: group.id, userId: admin.id } },
+      update: { role: "ADMIN" },
+      create: { groupId: group.id, userId: admin.id, role: "ADMIN" },
+    });
+  }
 }
 
 main()

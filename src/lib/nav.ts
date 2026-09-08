@@ -8,6 +8,20 @@ export type NavGroup = {
   items: NavLink[];
 };
 
+export type PrimaryNavItem =
+  | {
+      type: "link";
+      href: string;
+      label: string;
+    }
+  | {
+      type: "cluster";
+      label: string;
+      groups: NavGroup[];
+      /** Prefix used to mark the trigger active (e.g. /services). */
+      activeHref?: string;
+    };
+
 export const serviceGroups: NavGroup[] = [
   {
     heading: "School administration",
@@ -41,27 +55,34 @@ export const serviceGroups: NavGroup[] = [
   },
 ];
 
-export const serviceLinks: NavLink[] = serviceGroups.flatMap(
-  (group) => group.items,
-);
-
 export const communityLinks: NavLink[] = [
   { href: "/members", label: "Members" },
   { href: "/forum", label: "Forums" },
   { href: "/community", label: "Teacher Social" },
 ];
 
-export const primaryLinks: NavLink[] = [
-  { href: "/", label: "Home" },
-  { href: "/about", label: "About" },
-  { href: "/consult", label: "Consult" },
-  { href: "/blog", label: "Blog" },
-  { href: "/news", label: "News" },
-  { href: "/resources", label: "Resources" },
-  { href: "/store", label: "Store" },
-  { href: "/events", label: "Events" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/contact", label: "Contact" },
+export const primaryNav: PrimaryNavItem[] = [
+  { type: "link", href: "/", label: "Home" },
+  { type: "link", href: "/about", label: "About" },
+  {
+    type: "cluster",
+    label: "Services",
+    groups: serviceGroups,
+    activeHref: "/services",
+  },
+  { type: "link", href: "/consult", label: "Consult" },
+  { type: "link", href: "/blog", label: "Blog" },
+  { type: "link", href: "/news", label: "News" },
+  {
+    type: "cluster",
+    label: "Community",
+    groups: [{ heading: "", items: communityLinks }],
+  },
+  { type: "link", href: "/resources", label: "Resources" },
+  { type: "link", href: "/store", label: "Store" },
+  { type: "link", href: "/events", label: "Events" },
+  { type: "link", href: "/pricing", label: "Pricing" },
+  { type: "link", href: "/contact", label: "Contact" },
 ];
 
 export const authLinks: NavLink[] = [

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDownIcon, MenuIcon } from "lucide-react";
@@ -27,10 +28,9 @@ import {
 import { cn } from "@/lib/utils";
 import {
   authLinks,
-  communityLinks,
-  primaryLinks,
-  serviceGroups,
-  serviceLinks,
+  primaryNav,
+  type NavGroup,
+  type PrimaryNavItem,
 } from "@/lib/nav";
 
 function isActivePath(pathname: string, href: string) {
@@ -40,97 +40,142 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function isClusterActive(pathname: string, item: Extract<PrimaryNavItem, { type: "cluster" }>) {
+  if (item.activeHref && isActivePath(pathname, item.activeHref)) {
+    return true;
+  }
+  return item.groups.some((group) =>
+    group.items.some((link) => isActivePath(pathname, link.href)),
+  );
+}
+
+const desktopTriggerClass = cn(
+  navigationMenuTriggerStyle(),
+  "px-1.5 data-active:bg-muted/50 2xl:px-2.5",
+);
+
+function ClusterLinks({
+  groups,
+  pathname,
+  className,
+}: {
+  groups: NavGroup[];
+  pathname: string;
+  className?: string;
+}) {
+  return (
+    <ul className={className}>
+      {groups.map((group) => (
+        <li key={group.heading || "items"} className="flex flex-col gap-1">
+          {group.heading ? (
+            <p className="px-2 pt-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              {group.heading}
+            </p>
+          ) : null}
+          {group.items.map((link) => {
+            const active = isActivePath(pathname, link.href);
+            return (
+              <NavigationMenuLink key={link.href} asChild active={active}>
+                <Link
+                  href={link.href}
+                  aria-current={active ? "page" : undefined}
+                >
+                  {link.label}
+                </Link>
+              </NavigationMenuLink>
+            );
+          })}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function Nav() {
   const pathname = usePathname();
 
   return (
     <NavigationMenu className="hidden xl:flex" viewport>
-      <NavigationMenuList className="gap-0.5">
-        {primaryLinks.slice(0, 2).map((item) => (
-          <NavigationMenuItem key={item.href}>
-            <NavigationMenuLink
-              asChild
-              className={navigationMenuTriggerStyle()}
-              data-active={isActivePath(pathname, item.href) || undefined}
-            >
-              <Link href={item.href}>{item.label}</Link>
-            </NavigationMenuLink>
-          </NavigationMenuItem>
-        ))}
+      <NavigationMenuList className="gap-0">
+        {primaryNav.map((item) => {
+          if (item.type === "link") {
+            const active = isActivePath(pathname, item.href);
+            return (
+              <NavigationMenuItem key={item.href}>
+                <NavigationMenuLink
+                  asChild
+                  active={active}
+                  className={desktopTriggerClass}
+                >
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    {item.label}
+                  </Link>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+            );
+          }
 
-        <NavigationMenuItem>
-          <NavigationMenuTrigger
-            data-active={
-              isActivePath(pathname, "/services") || undefined
-            }
-          >
-            Services
-          </NavigationMenuTrigger>
-          <NavigationMenuContent>
-            <ul className="grid w-[36rem] grid-cols-3 gap-2 p-2">
-              {serviceGroups.map((group) => (
-                <li key={group.heading} className="flex flex-col gap-1">
-                  <p className="px-2 pt-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                    {group.heading}
-                  </p>
-                  {group.items.map((item) => (
-                    <NavigationMenuLink key={item.href} asChild>
-                      <Link href={item.href}>{item.label}</Link>
-                    </NavigationMenuLink>
-                  ))}
-                </li>
-              ))}
-            </ul>
-          </NavigationMenuContent>
-        </NavigationMenuItem>
+          const clusterActive = isClusterActive(pathname, item);
+          const mega = item.groups.length > 1;
 
-        {primaryLinks.slice(2, 5).map((item) => (
-          <NavigationMenuItem key={item.href}>
-            <NavigationMenuLink
-              asChild
-              className={navigationMenuTriggerStyle()}
-              data-active={isActivePath(pathname, item.href) || undefined}
-            >
-              <Link href={item.href}>{item.label}</Link>
-            </NavigationMenuLink>
-          </NavigationMenuItem>
-        ))}
-
-        <NavigationMenuItem>
-          <NavigationMenuTrigger
-            data-active={
-              communityLinks.some((item) => isActivePath(pathname, item.href)) ||
-              undefined
-            }
-          >
-            Community
-          </NavigationMenuTrigger>
-          <NavigationMenuContent>
-            <ul className="grid w-56 gap-1 p-1">
-              {communityLinks.map((item) => (
-                <li key={item.href}>
-                  <NavigationMenuLink asChild>
-                    <Link href={item.href}>{item.label}</Link>
-                  </NavigationMenuLink>
-                </li>
-              ))}
-            </ul>
-          </NavigationMenuContent>
-        </NavigationMenuItem>
-
-        {primaryLinks.slice(5).map((item) => (
-          <NavigationMenuItem key={item.href}>
-            <NavigationMenuLink
-              asChild
-              className={navigationMenuTriggerStyle()}
-              data-active={isActivePath(pathname, item.href) || undefined}
-            >
-              <Link href={item.href}>{item.label}</Link>
-            </NavigationMenuLink>
-          </NavigationMenuItem>
-        ))}
+          return (
+            <NavigationMenuItem key={item.label}>
+              <NavigationMenuTrigger
+                className={desktopTriggerClass}
+                data-active={clusterActive || undefined}
+              >
+                {item.label}
+              </NavigationMenuTrigger>
+              <NavigationMenuContent>
+                <ClusterLinks
+                  groups={item.groups}
+                  pathname={pathname}
+                  className={
+                    mega
+                      ? "grid w-[36rem] grid-cols-3 gap-2 p-2"
+                      : "grid w-56 gap-1 p-1"
+                  }
+                />
+              </NavigationMenuContent>
+            </NavigationMenuItem>
+          );
+        })}
       </NavigationMenuList>
     </NavigationMenu>
+  );
+}
+
+function MobileLink({
+  href,
+  children,
+  pathname,
+  nested = false,
+}: {
+  href: string;
+  children: ReactNode;
+  pathname: string;
+  nested?: boolean;
+}) {
+  const active = isActivePath(pathname, href);
+  return (
+    <SheetClose asChild>
+      <Link
+        href={href}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          "flex rounded-lg text-sm hover:bg-muted",
+          nested
+            ? "px-3 py-1.5 text-muted-foreground hover:text-foreground"
+            : "px-3 py-2 font-medium",
+          active && "bg-muted text-foreground",
+        )}
+      >
+        {children}
+      </Link>
+    </SheetClose>
   );
 }
 
@@ -156,103 +201,52 @@ export function MobileNav() {
         </SheetHeader>
         <nav className="flex-1 overflow-y-auto px-2 py-3">
           <ul className="flex flex-col gap-0.5">
-            {primaryLinks.slice(0, 2).map((item) => (
-              <li key={item.href}>
-                <SheetClose asChild>
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "flex rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted",
-                      isActivePath(pathname, item.href) && "bg-muted",
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                </SheetClose>
-              </li>
-            ))}
-            <li>
-              <details className="group">
-                <summary className="flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted [&::-webkit-details-marker]:hidden">
-                  Services
-                  <ChevronDownIcon className="size-4 text-muted-foreground transition group-open:rotate-180" />
-                </summary>
-                <ul className="mt-1 mb-2 ml-2 flex flex-col border-l border-border pl-2">
-                  {serviceLinks.map((item) => (
-                    <li key={item.href}>
-                      <SheetClose asChild>
-                        <Link
-                          href={item.href}
-                          className={cn(
-                            "flex rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground",
-                            isActivePath(pathname, item.href) &&
-                              "bg-muted text-foreground",
-                          )}
-                        >
-                          {item.label}
-                        </Link>
-                      </SheetClose>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            </li>
-            {primaryLinks.slice(2, 5).map((item) => (
-              <li key={item.href}>
-                <SheetClose asChild>
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "flex rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted",
-                      isActivePath(pathname, item.href) && "bg-muted",
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                </SheetClose>
-              </li>
-            ))}
-            <li>
-              <details className="group">
-                <summary className="flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted [&::-webkit-details-marker]:hidden">
-                  Community
-                  <ChevronDownIcon className="size-4 text-muted-foreground transition group-open:rotate-180" />
-                </summary>
-                <ul className="mt-1 mb-2 ml-2 flex flex-col border-l border-border pl-2">
-                  {communityLinks.map((item) => (
-                    <li key={item.href}>
-                      <SheetClose asChild>
-                        <Link
-                          href={item.href}
-                          className={cn(
-                            "flex rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground",
-                            isActivePath(pathname, item.href) &&
-                              "bg-muted text-foreground",
-                          )}
-                        >
-                          {item.label}
-                        </Link>
-                      </SheetClose>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            </li>
-            {primaryLinks.slice(5).map((item) => (
-              <li key={item.href}>
-                <SheetClose asChild>
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "flex rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted",
-                      isActivePath(pathname, item.href) && "bg-muted",
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                </SheetClose>
-              </li>
-            ))}
+            {primaryNav.map((item) => {
+              if (item.type === "link") {
+                return (
+                  <li key={item.href}>
+                    <MobileLink href={item.href} pathname={pathname}>
+                      {item.label}
+                    </MobileLink>
+                  </li>
+                );
+              }
+
+              return (
+                <li key={item.label}>
+                  <details className="group">
+                    <summary className="flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted [&::-webkit-details-marker]:hidden">
+                      {item.label}
+                      <ChevronDownIcon className="size-4 text-muted-foreground transition group-open:rotate-180" />
+                    </summary>
+                    <ul className="mt-1 mb-2 ml-2 flex flex-col border-l border-border pl-2">
+                      {item.groups.map((group) => (
+                        <li key={group.heading || "items"}>
+                          {group.heading ? (
+                            <p className="px-3 pt-2 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                              {group.heading}
+                            </p>
+                          ) : null}
+                          <ul className="flex flex-col">
+                            {group.items.map((link) => (
+                              <li key={link.href}>
+                                <MobileLink
+                                  href={link.href}
+                                  pathname={pathname}
+                                  nested
+                                >
+                                  {link.label}
+                                </MobileLink>
+                              </li>
+                            ))}
+                          </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                </li>
+              );
+            })}
           </ul>
         </nav>
         <SheetFooter className="border-t sm:flex-row">

@@ -11,6 +11,6 @@ chalknpencil-archive/
 .pnpm-store/
 playwright-report/
 test-results/
-storage/
+/storage/
 *.pem
 *.tsbuildinfo

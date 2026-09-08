@@ -44,7 +44,10 @@ export default async function AccountPage() {
         </div>
       </dl>
       <div className="mt-6 flex flex-wrap gap-3">
-        <Link href="/account/settings" className={`${buttonClass} w-auto`}>
+        <Link href="/resources" className={`${buttonClass} w-auto`}>
+          Resource Corner
+        </Link>
+        <Link href="/account/settings" className={`${secondaryButtonClass} w-auto`}>
           Account settings
         </Link>
         <form action={signOutAction}>

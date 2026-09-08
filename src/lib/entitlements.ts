@@ -4,6 +4,7 @@ import {
   ResourceStatus,
   ResourceVisibility,
   Role,
+  SubscriptionStatus,
   UserStatus,
 } from "@prisma/client";
 
@@ -31,6 +32,26 @@ export function hasEducatorLibraryAccess(
 
 export function canUploadResource(user: EntitlementUser | null | undefined): boolean {
   return hasEducatorLibraryAccess(user);
+}
+
+/** Paid webinar pack unlocks webinars only — never the EDUCATOR_ONLY library. */
+export function planGrantsWebinars(entitlements: unknown): boolean {
+  if (!entitlements || typeof entitlements !== "object") return false;
+  return (entitlements as { webinars?: unknown }).webinars === true;
+}
+
+export function isWebinarPackActive(args: {
+  status: SubscriptionStatus;
+  currentPeriodEnd: Date;
+  entitlements: unknown;
+  now?: Date;
+}): boolean {
+  const now = args.now ?? new Date();
+  return (
+    args.status === SubscriptionStatus.ACTIVE &&
+    args.currentPeriodEnd.getTime() > now.getTime() &&
+    planGrantsWebinars(args.entitlements)
+  );
 }
 
 export type FileAccessDecision = "allow" | "login" | "forbidden" | "not_found";

@@ -1,7 +1,10 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { buttonClass, errorClass, fieldClass } from "@/components/auth/ui";
+import Link from "next/link";
+import { buttonClass, errorClass, fieldClass, successClass } from "@/components/auth/ui";
+import { GatewayFields } from "@/components/payments/gateway-fields";
+import { RazorpayAutoOpen } from "@/components/payments/razorpay-checkout";
 import { AddressFields } from "@/components/store/address-fields";
 import { formatInrPaise } from "@/lib/money";
 import { shippingBand, shippingPaiseForBand } from "@/lib/shipping";
@@ -157,16 +160,37 @@ export function CheckoutForm({
         </div>
       </dl>
 
+      <GatewayFields />
+
       <p className="text-sm text-stone-600">
         Prepaid only — no cash on delivery. Self-ship within India (metro{" "}
         {formatInrPaise(rates.metro)} / rest of India {formatInrPaise(rates.rest)}
-        ). GST is ₹0 until EduVoq’s GSTIN is registered. Payment checkout arrives
-        in the next release; this order stays pending payment for 15 minutes.
+        ). GST is ₹0 until EduVoq’s GSTIN is registered. The unpaid hold expires
+        in 15 minutes.
       </p>
+
+      {state?.ok && state.orderId ? (
+        <p className={successClass}>
+          Order placed. Complete Razorpay checkout in the window, or open{" "}
+          <Link href={`/account/orders/${state.orderId}`} className="underline">
+            your order
+          </Link>
+          .
+        </p>
+      ) : null}
+      {state?.orderId && state.error ? (
+        <p className={successClass}>
+          <Link href={`/account/orders/${state.orderId}`} className="underline">
+            Open the order
+          </Link>{" "}
+          to retry payment.
+        </p>
+      ) : null}
 
       <button className={`${buttonClass} w-auto justify-self-start`} type="submit" disabled={pending}>
         {pending ? "Placing order…" : "Place prepaid order"}
       </button>
+      <RazorpayAutoOpen payload={state?.razorpay} />
     </form>
   );
 }

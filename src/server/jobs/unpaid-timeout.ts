@@ -1,7 +1,10 @@
-import { BookingStatus, OrderStatus } from "@prisma/client";
+import { BookingStatus } from "@prisma/client";
+import { PAYMENT_HOLD_MS } from "@/lib/payments/gateway";
+import { releaseExpiredPendingOrders } from "@/server/commerce";
 import { prisma } from "@/server/db";
+import { allowReleaseExpiredPayment } from "@/server/payments";
 
-export const UNPAID_TIMEOUT_MS = 15 * 60 * 1000;
+export const UNPAID_TIMEOUT_MS = PAYMENT_HOLD_MS;
 
 export async function runUnpaidTimeout(now = new Date()): Promise<{
   bookingsDeleted: number;
@@ -9,23 +12,28 @@ export async function runUnpaidTimeout(now = new Date()): Promise<{
 }> {
   const cutoff = new Date(now.getTime() - UNPAID_TIMEOUT_MS);
 
-  const bookings = await prisma.booking.deleteMany({
+  const pending = await prisma.booking.findMany({
     where: {
       status: BookingStatus.PENDING_PAYMENT,
       createdAt: { lt: cutoff },
     },
+    select: { id: true, razorpayOrderId: true },
   });
+  let bookingsDeleted = 0;
+  for (const row of pending) {
+    if (!(await allowReleaseExpiredPayment(row.razorpayOrderId))) continue;
+    const deleted = await prisma.booking.deleteMany({
+      where: { id: row.id, status: BookingStatus.PENDING_PAYMENT },
+    });
+    bookingsDeleted += deleted.count;
+  }
 
-  const orders = await prisma.order.updateMany({
-    where: {
-      status: OrderStatus.PENDING_PAYMENT,
-      OR: [{ expiresAt: { lte: now } }, { expiresAt: null, createdAt: { lt: cutoff } }],
-    },
-    data: { status: OrderStatus.CANCELLED },
+  const ordersCancelled = await releaseExpiredPendingOrders(now, {
+    expireGateways: true,
   });
 
   return {
-    bookingsDeleted: bookings.count,
-    ordersCancelled: orders.count,
+    bookingsDeleted,
+    ordersCancelled,
   };
 }

@@ -9,6 +9,7 @@ import {
 } from "@/components/consult/booking-actions";
 import { AvailabilityForm } from "@/components/consult/availability-form";
 import { successClass } from "@/components/auth/ui";
+import { PayBookingForm } from "@/components/payments/pay-form";
 import { formatKolkata } from "@/lib/kolkata";
 import { formatInrPaise } from "@/lib/money";
 import { prisma } from "@/server/db";
@@ -40,12 +41,12 @@ function statusLabel(status: BookingStatus): string {
 export default async function AccountBookingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ booked?: string }>;
+  searchParams: Promise<{ booked?: string; paid?: string; cancelled?: string }>;
 }) {
   const user = await requireSession().catch(() => null);
   if (!user) redirect("/login?callbackUrl=/account/bookings");
 
-  const { booked } = await searchParams;
+  const { booked, paid, cancelled } = await searchParams;
   const asExpert = user.role === Role.EXPERT || user.role === Role.STAFF || user.role === Role.ADMIN;
 
   const [mine, assigned, windows] = await Promise.all([
@@ -89,7 +90,17 @@ export default async function AccountBookingsPage({
       </h1>
       {booked ? (
         <p className={`${successClass} mt-4`}>
-          Booking recorded. The slot is held for 15 minutes pending payment.
+          Booking recorded. Complete payment within 15 minutes to keep the slot.
+        </p>
+      ) : null}
+      {paid ? (
+        <p className={`${successClass} mt-4`}>
+          If you already paid, confirmed sessions appear below after the webhook.
+        </p>
+      ) : null}
+      {cancelled ? (
+        <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Checkout was cancelled. Pending bookings can be paid again below.
         </p>
       ) : null}
 
@@ -136,8 +147,12 @@ export default async function AccountBookingsPage({
                     Meeting link appears here when the expert adds it.
                   </p>
                 )}
-                {booking.status === BookingStatus.PENDING_PAYMENT ||
-                booking.status === BookingStatus.CONFIRMED ? (
+                {booking.status === BookingStatus.PENDING_PAYMENT ? (
+                  <div className="mt-4 grid gap-4">
+                    <PayBookingForm bookingId={booking.id} />
+                    <CancelBookingButton bookingId={booking.id} />
+                  </div>
+                ) : booking.status === BookingStatus.CONFIRMED ? (
                   <div className="mt-4">
                     <CancelBookingButton bookingId={booking.id} />
                   </div>

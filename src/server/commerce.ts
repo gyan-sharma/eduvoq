@@ -7,6 +7,7 @@ import {
   type Address,
 } from "@prisma/client";
 import { orderTotals } from "@/lib/money";
+import { skipOpportunisticGatewayExpire } from "@/lib/payments/gateway";
 import {
   DEFAULT_METRO_PAISE,
   DEFAULT_REST_PAISE,
@@ -22,6 +23,7 @@ import {
   isPlaceholderCatalogKey,
 } from "@/lib/types/commerce";
 import { prisma } from "@/server/db";
+import { allowReleaseExpiredPayment } from "@/server/payments";
 
 export class CommerceError extends Error {
   constructor(message: string) {
@@ -125,16 +127,22 @@ export function quoteShipping(
 
 export async function releaseExpiredPendingOrders(
   now = new Date(),
+  opts: { expireGateways?: boolean } = {},
 ): Promise<number> {
   const expired = await prisma.order.findMany({
     where: {
       status: OrderStatus.PENDING_PAYMENT,
       expiresAt: { lte: now },
     },
-    select: { id: true },
+    select: { id: true, razorpayOrderId: true },
   });
   let released = 0;
   for (const row of expired) {
+    if (opts.expireGateways) {
+      if (!(await allowReleaseExpiredPayment(row.razorpayOrderId))) continue;
+    } else if (skipOpportunisticGatewayExpire(row.razorpayOrderId)) {
+      continue;
+    }
     const did = await cancelPendingOrderInTx(row.id);
     if (did) released += 1;
   }

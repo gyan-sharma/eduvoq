@@ -1,7 +1,10 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { buttonClass, errorClass, fieldClass } from "@/components/auth/ui";
+import Link from "next/link";
+import { buttonClass, errorClass, fieldClass, successClass } from "@/components/auth/ui";
+import { GatewayFields } from "@/components/payments/gateway-fields";
+import { RazorpayAutoOpen } from "@/components/payments/razorpay-checkout";
 import { formatKolkataDate, formatKolkataTime, kolkataDateKey } from "@/lib/kolkata";
 import { createBooking, type BookingActionState } from "@/server/actions/booking";
 import type { PublicSlot } from "@/lib/types/booking";
@@ -97,13 +100,24 @@ export function BookForm({
         />
       </label>
 
+      <GatewayFields />
+
       <button className={`${buttonClass} w-auto justify-self-start`} type="submit" disabled={pending}>
-        {pending ? "Holding slot…" : "Confirm booking"}
+        {pending ? "Holding slot…" : "Hold slot and pay"}
       </button>
+      {state?.bookingId ? (
+        <p className={successClass}>
+          Slot held for 15 minutes.{" "}
+          <Link href="/account/bookings" className="underline">
+            Open My bookings
+          </Link>{" "}
+          if the payment window closed.
+        </p>
+      ) : null}
       <p className="text-xs text-stone-500">
-        The slot is held for 15 minutes. Payment confirmation will attach in a
-        later release; unpaid holds expire automatically.
+        Prepaid only. Unpaid holds expire after 15 minutes and free the slot.
       </p>
+      <RazorpayAutoOpen payload={state?.razorpay} />
     </form>
   );
 }

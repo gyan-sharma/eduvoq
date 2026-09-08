@@ -7,6 +7,7 @@ import {
   isIndiaCountry,
   normalizeIndianPhone,
 } from "@/lib/india";
+import { checkoutGatewaySchema } from "@/lib/validators/payments";
 import { MAX_CART_QTY } from "@/lib/types/commerce";
 
 const stateSet = new Set<string>(INDIAN_STATES);
@@ -81,6 +82,7 @@ export const placeOrderSchema = z.object({
       (value) => !value || GSTIN_RE.test(value),
       "Enter a valid 15-character GSTIN.",
     ),
+  gateway: checkoutGatewaySchema,
 });
 
 export const cancelOrderSchema = z.object({

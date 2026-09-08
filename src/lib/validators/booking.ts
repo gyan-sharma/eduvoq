@@ -1,9 +1,11 @@
 import { z } from "zod";
+import { checkoutGatewaySchema } from "@/lib/validators/payments";
 
 export const createBookingSchema = z.object({
   serviceSlug: z.string().trim().min(1).max(191),
   startsAt: z.string().min(1, "Choose a time slot."),
   notes: z.string().max(2000, "Notes are too long."),
+  gateway: checkoutGatewaySchema,
 });
 
 export const cancelBookingSchema = z.object({

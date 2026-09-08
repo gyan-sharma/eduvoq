@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { OrderStatus } from "@prisma/client";
 import { successClass } from "@/components/auth/ui";
+import { PayOrderForm } from "@/components/payments/pay-form";
 import { CancelOrderButton } from "@/components/store/cancel-order-button";
 import { formatInrPaise } from "@/lib/money";
 import { orderStatusLabel } from "@/lib/types/commerce";
@@ -23,13 +24,13 @@ export default async function AccountOrderDetailPage({
   searchParams,
 }: {
   params: Promise<Params>;
-  searchParams: Promise<{ placed?: string }>;
+  searchParams: Promise<{ placed?: string; paid?: string; cancelled?: string }>;
 }) {
   const user = await requireSession().catch(() => null);
   if (!user) redirect("/login?callbackUrl=/account/orders");
 
   const { id } = await params;
-  const { placed } = await searchParams;
+  const { placed, paid, cancelled } = await searchParams;
   await releaseExpiredPendingOrders();
 
   const order = await prisma.order.findFirst({
@@ -53,8 +54,24 @@ export default async function AccountOrderDetailPage({
       </h1>
       {placed && order.status === OrderStatus.PENDING_PAYMENT ? (
         <p className={`${successClass} mt-4`}>
-          Order placed. It stays pending payment for 15 minutes. Online checkout
-          ships in the next release — no cash on delivery.
+          Order placed. Complete payment within 15 minutes. Prepaid only — no
+          cash on delivery.
+        </p>
+      ) : null}
+      {paid &&
+      (order.status === OrderStatus.PAID ||
+        order.status === OrderStatus.FULFILLING) ? (
+        <p className={`${successClass} mt-4`}>Payment received.</p>
+      ) : null}
+      {paid && order.status === OrderStatus.PENDING_PAYMENT ? (
+        <p className={`${successClass} mt-4`}>
+          If you already paid, this page updates when the webhook arrives.
+        </p>
+      ) : null}
+      {cancelled && order.status === OrderStatus.PENDING_PAYMENT ? (
+        <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Checkout was cancelled. You can pay again below until the 15-minute
+          hold expires.
         </p>
       ) : null}
 
@@ -127,7 +144,8 @@ export default async function AccountOrderDetailPage({
       ) : null}
 
       {order.status === OrderStatus.PENDING_PAYMENT ? (
-        <div className="mt-8">
+        <div className="mt-8 grid gap-6">
+          <PayOrderForm orderId={order.id} />
           <CancelOrderButton orderId={order.id} />
         </div>
       ) : null}

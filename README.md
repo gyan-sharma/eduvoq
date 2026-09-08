@@ -59,6 +59,17 @@ After MySQL is up: `pnpm db:migrate && pnpm db:seed`. Dev admin is `admin@eduvoq
 
 Educator/expert uploads land in `Resource.status=IN_REVIEW`. Staff/admin uploads publish immediately. MIME allowlist: PDF, JPEG, PNG, WebP. Cap: 25 MB (images 5 MB). No virus scanner.
 
+## Store
+
+| Route | Auth | Notes |
+| --- | --- | --- |
+| `/store` | public | Two stationery SKUs only |
+| `/store/products/[slug]` | public | Add to cart is member-only |
+| `/cart` `/checkout` | member | DB cart; no guest checkout |
+| `/account/orders` `/account/addresses` | member | India addresses; GST ₹0 |
+
+Physical self-ship (`commerce_physical=true`): India only, prepaid, no COD. Metro ₹79 / rest of India ₹129. `placeOrder` decrements stock in a transaction and leaves the order `PENDING_PAYMENT` until payments (PR 15). Placeholder `i-m-a-product-*` SKUs are not sold.
+
 ## Scripts
 
 | Command | Description |
@@ -67,7 +78,7 @@ Educator/expert uploads land in `Resource.status=IN_REVIEW`. Staff/admin uploads
 | `pnpm build` | Production build (`output: "standalone"`) |
 | `pnpm start` | Run the production server |
 | `pnpm lint` | ESLint (`next/core-web-vitals`) |
-| `pnpm test` | Vitest (age-gate, storage, entitlements) |
-| `pnpm db:seed` | Seed admin, catalog, consultation services |
+| `pnpm test` | Vitest (age-gate, storage, entitlements, commerce) |
+| `pnpm db:seed` | Seed admin, catalog, consultation services, shipping rates |
 
 Do not commit secrets or the `chalknpencil-archive/` snapshot.

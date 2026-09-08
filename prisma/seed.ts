@@ -49,6 +49,27 @@ async function main() {
     },
   });
 
+  const flags = [
+    ["registrations", true],
+    ["student_self_register", false],
+    ["community", true],
+    ["forum", true],
+    ["commerce", true],
+    ["commerce_physical", true],
+    ["bookings", true],
+    ["wallet_spend", false],
+    ["ai_assistants", false],
+    ["events_registration", true],
+  ] as const;
+
+  for (const [key, enabled] of flags) {
+    await prisma.featureFlag.upsert({
+      where: { key },
+      update: {},
+      create: { key, enabled },
+    });
+  }
+
   await prisma.shippingRate.upsert({
     where: { slug: "metro" },
     update: { name: "Metro", paise: 7900 },
@@ -115,18 +136,29 @@ async function main() {
     create: { slug: "all-products", name: "All Products" },
   });
 
+  await prisma.product.updateMany({
+    where: {
+      OR: [
+        { sku: { contains: "i-m-a-product" } },
+        { slug: { contains: "i-m-a-product" } },
+        { name: { contains: "i-m-a-product" } },
+      ],
+    },
+    data: { isActive: false },
+  });
+
   await prisma.product.upsert({
     where: { sku: "EV-DIARY-001" },
     update: {
       slug: "student-s-diary",
       name: "Student's Diary",
       descriptionJson: richText(
-        "Academic planning diary for students.",
+        "Academic planning diary for students. Use it to track homework, exams, and the school year.",
       ),
       type: ProductType.PHYSICAL,
       pricePaise: 18800,
       currency: "INR",
-      stock: 100,
+      hsnSac: "4820",
       isActive: true,
       categoryId: category.id,
     },
@@ -134,13 +166,14 @@ async function main() {
       slug: "student-s-diary",
       name: "Student's Diary",
       descriptionJson: richText(
-        "Academic planning diary for students.",
+        "Academic planning diary for students. Use it to track homework, exams, and the school year.",
       ),
       type: ProductType.PHYSICAL,
       pricePaise: 18800,
       currency: "INR",
       sku: "EV-DIARY-001",
       stock: 100,
+      hsnSac: "4820",
       isActive: true,
       categoryId: category.id,
     },
@@ -152,12 +185,12 @@ async function main() {
       slug: "time-table-arrangement-register",
       name: "Time-table Arrangement Register",
       descriptionJson: richText(
-        "Quality-paper register for educators and students.",
+        "Quality-paper register for educators and students to plan and record class time-tables.",
       ),
       type: ProductType.PHYSICAL,
       pricePaise: 30000,
       currency: "INR",
-      stock: 100,
+      hsnSac: "4820",
       isActive: true,
       categoryId: category.id,
     },
@@ -165,13 +198,14 @@ async function main() {
       slug: "time-table-arrangement-register",
       name: "Time-table Arrangement Register",
       descriptionJson: richText(
-        "Quality-paper register for educators and students.",
+        "Quality-paper register for educators and students to plan and record class time-tables.",
       ),
       type: ProductType.PHYSICAL,
       pricePaise: 30000,
       currency: "INR",
       sku: "EV-TTREG-001",
       stock: 100,
+      hsnSac: "4820",
       isActive: true,
       categoryId: category.id,
     },

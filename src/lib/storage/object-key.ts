@@ -42,6 +42,21 @@ export function safeFilenameBase(originalName: string): string {
   return base || "file";
 }
 
+export function productObjectKey(productId: string, filename: string): string {
+  if (!/^[a-zA-Z0-9_-]+$/.test(productId)) {
+    throw new Error("Invalid product id");
+  }
+  if (
+    filename.includes("/") ||
+    filename.includes("\\") ||
+    filename.includes("..") ||
+    !/^[a-zA-Z0-9._-]+$/.test(filename)
+  ) {
+    throw new Error("Invalid filename");
+  }
+  return assertSafeObjectKey(`public/products/${productId}/${filename}`);
+}
+
 export function resourceObjectKey(resourceId: string, filename: string): string {
   if (!/^[a-zA-Z0-9_-]+$/.test(resourceId)) {
     throw new Error("Invalid resource id");

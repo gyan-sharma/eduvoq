@@ -26,6 +26,41 @@ const nextConfig: NextConfig = {
         destination: "/resources/class-notes",
         permanent: true,
       },
+      {
+        source: "/category/all-products",
+        destination: "/store",
+        permanent: true,
+      },
+      {
+        source: "/product-page/:slug",
+        destination: "/store/products/:slug",
+        permanent: true,
+      },
+      {
+        source: "/cart-page",
+        destination: "/cart",
+        permanent: true,
+      },
+      {
+        source: "/my-orders",
+        destination: "/account/orders",
+        permanent: true,
+      },
+      {
+        source: "/my-addresses",
+        destination: "/account/addresses",
+        permanent: true,
+      },
+      {
+        source: "/account/my-orders",
+        destination: "/account/orders",
+        permanent: true,
+      },
+      {
+        source: "/account/my-addresses",
+        destination: "/account/addresses",
+        permanent: true,
+      },
     ];
   },
 };

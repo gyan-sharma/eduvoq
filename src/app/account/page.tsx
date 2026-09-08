@@ -44,7 +44,16 @@ export default async function AccountPage() {
         </div>
       </dl>
       <div className="mt-6 flex flex-wrap gap-3">
-        <Link href="/resources" className={`${buttonClass} w-auto`}>
+        <Link href="/store" className={`${buttonClass} w-auto`}>
+          Store
+        </Link>
+        <Link href="/account/orders" className={`${secondaryButtonClass} w-auto`}>
+          Orders
+        </Link>
+        <Link href="/account/addresses" className={`${secondaryButtonClass} w-auto`}>
+          Addresses
+        </Link>
+        <Link href="/resources" className={`${secondaryButtonClass} w-auto`}>
           Resource Corner
         </Link>
         <Link href="/account/settings" className={`${secondaryButtonClass} w-auto`}>

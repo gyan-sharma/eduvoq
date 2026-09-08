@@ -11,6 +11,7 @@ import {
 } from "@/lib/storage/limits";
 import {
   assertSafeObjectKey,
+  productObjectKey,
   resourceObjectKey,
   safeFilenameBase,
 } from "@/lib/storage/object-key";
@@ -75,6 +76,13 @@ describe("object keys", () => {
     expect(resourceObjectKey("res1", "notes.pdf")).toBe(
       "private/resources/res1/notes.pdf",
     );
+  });
+
+  it("builds a public product image key", () => {
+    expect(productObjectKey("prod1", "cover.jpg")).toBe(
+      "public/products/prod1/cover.jpg",
+    );
+    expect(() => productObjectKey("prod1", "../x.jpg")).toThrow(/Invalid/);
   });
 
   it("sanitizes filename bases", () => {

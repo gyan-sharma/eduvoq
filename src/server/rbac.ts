@@ -25,11 +25,16 @@ export async function requireSession(): Promise<User> {
   return user;
 }
 
-export async function requireRole(...roles: Role[]): Promise<User> {
+export async function requireActiveUser(): Promise<User> {
   const user = await requireSession();
   if (user.status !== UserStatus.ACTIVE) {
     throw new Error("FORBIDDEN");
   }
+  return user;
+}
+
+export async function requireRole(...roles: Role[]): Promise<User> {
+  const user = await requireActiveUser();
   if (!roles.includes(user.role)) {
     throw new Error("FORBIDDEN");
   }

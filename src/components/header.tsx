@@ -15,6 +15,9 @@ export async function Header() {
           EduVoq
         </Link>
         <nav className="flex flex-wrap items-center gap-4 text-sm text-stone-700">
+          <Link href="/store" className="hover:text-emerald-800">
+            Store
+          </Link>
           <Link href="/sample-papers" className="hover:text-emerald-800">
             Sample papers
           </Link>
@@ -22,6 +25,9 @@ export async function Header() {
             <>
               <Link href="/resources" className="hover:text-emerald-800">
                 Resource Corner
+              </Link>
+              <Link href="/cart" className="hover:text-emerald-800">
+                Cart
               </Link>
               <Link href="/account" className="hover:text-emerald-800">
                 Account

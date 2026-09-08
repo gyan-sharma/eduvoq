@@ -171,21 +171,21 @@ export async function cancelRazorpayOrder(orderId: string): Promise<void> {
   }
 }
 
-export async function refundRazorpayPayment(paymentId: string): Promise<void> {
+export async function refundRazorpayPayment(paymentId: string): Promise<boolean> {
   const config = razorpayConfig();
-  if (!razorpayCheckoutReady(config) || !paymentId.startsWith("pay_")) return;
+  if (!razorpayCheckoutReady(config) || !paymentId.startsWith("pay_")) return false;
   const response = await fetch(`${RAZORPAY_API}/payments/${encodeURIComponent(paymentId)}/refund`, {
     method: "POST",
     headers: {
       Authorization: authHeader(config.keyId, config.keySecret),
       "Content-Type": "application/json",
+      "Idempotency-Key": `eduvoq-conflict-${paymentId}`,
     },
     body: JSON.stringify({}),
   });
-  if (!response.ok && response.status !== 400) {
-    const json = (await response.json().catch(() => null)) as { error?: { description?: string } } | null;
-    throw new PaymentError(json?.error?.description ?? "Unable to refund Razorpay payment.");
-  }
+  if (response.ok || response.status === 400) return true;
+  const json = (await response.json().catch(() => null)) as { error?: { description?: string } } | null;
+  throw new PaymentError(json?.error?.description ?? "Unable to refund Razorpay payment.");
 }
 
 export async function fetchRazorpayPayment(paymentId: string): Promise<RazorpayPayment> {

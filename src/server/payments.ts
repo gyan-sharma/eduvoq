@@ -741,13 +741,15 @@ async function fulfillPlanPack(capture: CaptureInput): Promise<FulfillStatus> {
   return "fulfilled";
 }
 
-async function refundConflictingCapture(capture: CaptureInput): Promise<void> {
+async function refundConflictingCapture(capture: CaptureInput): Promise<boolean> {
   try {
     if (capture.provider === PaymentProvider.STRIPE) {
-      await refundStripePayment(capture.paymentId);
-    } else if (capture.provider === PaymentProvider.RAZORPAY) {
-      await refundRazorpayPayment(capture.paymentId);
+      return await refundStripePayment(capture.paymentId);
     }
+    if (capture.provider === PaymentProvider.RAZORPAY) {
+      return await refundRazorpayPayment(capture.paymentId);
+    }
+    return false;
   } catch (error) {
     logger.error(
       {
@@ -758,6 +760,7 @@ async function refundConflictingCapture(capture: CaptureInput): Promise<void> {
       },
       "double-charge refund failed",
     );
+    return false;
   }
 }
 
@@ -798,9 +801,6 @@ export async function ingestCapture(capture: CaptureInput): Promise<IngestResult
     return "ignored";
   }
 
-  const recorded = await recordPaymentEvent(capture);
-  if (recorded === "duplicate" && status === "fulfilled") return "duplicate";
-
   if (status === "conflict") {
     logger.error(
       {
@@ -811,9 +811,20 @@ export async function ingestCapture(capture: CaptureInput): Promise<IngestResult
       },
       "capture conflicts with an already-paid row",
     );
-    await refundConflictingCapture(capture);
+    const refunded = await refundConflictingCapture(capture);
+    if (!refunded) {
+      logger.warn(
+        { providerEventId: capture.providerEventId, paymentId: capture.paymentId },
+        "conflict refund not confirmed; leaving PaymentEvent unset for retry",
+      );
+      return "ignored";
+    }
+    await recordPaymentEvent(capture);
     return "conflict";
   }
+
+  const recorded = await recordPaymentEvent(capture);
+  if (recorded === "duplicate") return "duplicate";
   return "fulfilled";
 }
 

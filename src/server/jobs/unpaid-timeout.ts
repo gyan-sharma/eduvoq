@@ -28,7 +28,9 @@ export async function runUnpaidTimeout(now = new Date()): Promise<{
     bookingsDeleted += deleted.count;
   }
 
-  const ordersCancelled = await releaseExpiredPendingOrders(now);
+  const ordersCancelled = await releaseExpiredPendingOrders(now, {
+    expireGateways: true,
+  });
 
   return {
     bookingsDeleted,

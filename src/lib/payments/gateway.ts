@@ -119,6 +119,13 @@ export function gatewayKindFromId(
   return null;
 }
 
+/** Store/cart opportunistic release must not hit Stripe expire APIs. */
+export function skipOpportunisticGatewayExpire(
+  gatewayOrderId: string | null | undefined,
+): boolean {
+  return gatewayKindFromId(gatewayOrderId) === "stripe";
+}
+
 export function captureEventId(paymentId: string, fallback: string): string {
   return paymentId ? `pay:${paymentId}` : fallback;
 }

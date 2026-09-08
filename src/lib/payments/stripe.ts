@@ -134,13 +134,25 @@ export async function expireStripeCheckoutSession(sessionId: string): Promise<vo
   }
 }
 
-export async function refundStripePayment(paymentId: string): Promise<void> {
-  if (!paymentId.startsWith("pi_") && !paymentId.startsWith("ch_")) return;
-  await getStripe().refunds.create(
-    paymentId.startsWith("pi_")
-      ? { payment_intent: paymentId }
-      : { charge: paymentId },
-  );
+export async function refundStripePayment(paymentId: string): Promise<boolean> {
+  if (!paymentId.startsWith("pi_") && !paymentId.startsWith("ch_")) return false;
+  try {
+    await getStripe().refunds.create(
+      paymentId.startsWith("pi_")
+        ? { payment_intent: paymentId }
+        : { charge: paymentId },
+      { idempotencyKey: `eduvoq-conflict-${paymentId}` },
+    );
+    return true;
+  } catch (error) {
+    if (
+      error instanceof Stripe.errors.StripeError &&
+      error.statusCode === 400
+    ) {
+      return true;
+    }
+    throw error;
+  }
 }
 
 export function constructStripeEvent(rawBody: string, signature: string | null): Stripe.Event {

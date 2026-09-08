@@ -10,6 +10,7 @@ import {
   fromGatewayNotes,
   gatewayKindFromId,
   inrPaise,
+  skipOpportunisticGatewayExpire,
   mergeGatewayNotes,
   parseCheckoutGateway,
   sameGatewayPaymentId,
@@ -86,6 +87,9 @@ describe("gateway notes", () => {
   it("identifies gateway ids and same payment", () => {
     expect(gatewayKindFromId("cs_abc")).toBe("stripe");
     expect(gatewayKindFromId("order_abc")).toBe("razorpay");
+    expect(skipOpportunisticGatewayExpire("cs_abc")).toBe(true);
+    expect(skipOpportunisticGatewayExpire("order_abc")).toBe(false);
+    expect(skipOpportunisticGatewayExpire(null)).toBe(false);
     expect(sameGatewayPaymentId(null, "pay_1")).toBe(true);
     expect(sameGatewayPaymentId("pay_1", "pay_1")).toBe(true);
     expect(sameGatewayPaymentId("pay_1", "pay_2")).toBe(false);

@@ -12,23 +12,28 @@ export function getTurnstileSecretKey() {
 
 export async function verifyTurnstileToken(token: string) {
   const secret = getTurnstileSecretKey();
-  if (!secret) {
-    return token.length > 0;
-  }
-
-  const response = await fetch(
-    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-    {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ secret, response: token }),
-    },
-  );
-
-  if (!response.ok) {
+  // Never treat a client token as valid without siteverify.
+  if (!secret || !token) {
     return false;
   }
 
-  const payload = (await response.json()) as { success?: boolean };
-  return payload.success === true;
+  try {
+    const response = await fetch(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ secret, response: token }),
+      },
+    );
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const payload = (await response.json()) as { success?: boolean };
+    return payload.success === true;
+  } catch {
+    return false;
+  }
 }

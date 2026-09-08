@@ -79,7 +79,9 @@ export function ContactForm({ siteKey }: { siteKey: string }) {
         ) : null}
       </div>
 
-      {siteKey ? <TurnstileField siteKey={siteKey} /> : null}
+      {siteKey ? (
+        <TurnstileField siteKey={siteKey} resetOn={state} />
+      ) : null}
 
       {state?.error ? (
         <p className="text-sm text-destructive" role="alert">

@@ -9,6 +9,7 @@ declare global {
         element: HTMLElement,
         options: { sitekey: string; theme?: "light" | "auto" | "dark" },
       ) => string;
+      reset?: (widgetId?: string) => void;
       remove?: (widgetId: string) => void;
     };
   }
@@ -17,20 +18,26 @@ declare global {
 const SCRIPT_SRC =
   "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 
-export function TurnstileField({ siteKey }: { siteKey: string }) {
+export function TurnstileField({
+  siteKey,
+  resetOn,
+}: {
+  siteKey: string;
+  resetOn?: unknown;
+}) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const widgetIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     const host = hostRef.current;
     if (!host || !siteKey) return;
 
-    let widgetId: string | undefined;
     let cancelled = false;
 
     const render = () => {
       if (cancelled || !window.turnstile || !hostRef.current) return;
       hostRef.current.innerHTML = "";
-      widgetId = window.turnstile.render(hostRef.current, {
+      widgetIdRef.current = window.turnstile.render(hostRef.current, {
         sitekey: siteKey,
         theme: "auto",
       });
@@ -53,11 +60,21 @@ export function TurnstileField({ siteKey }: { siteKey: string }) {
 
     return () => {
       cancelled = true;
+      const widgetId = widgetIdRef.current;
+      widgetIdRef.current = undefined;
       if (widgetId && window.turnstile?.remove) {
         window.turnstile.remove(widgetId);
       }
     };
   }, [siteKey]);
+
+  useEffect(() => {
+    if (resetOn == null) return;
+    const widgetId = widgetIdRef.current;
+    if (widgetId && window.turnstile?.reset) {
+      window.turnstile.reset(widgetId);
+    }
+  }, [resetOn]);
 
   return <div ref={hostRef} className="mt-1" />;
 }

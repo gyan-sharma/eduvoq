@@ -54,7 +54,13 @@ export async function submitContact(
 
   const siteKey = getTurnstileSiteKey();
   const secret = getTurnstileSecretKey();
-  if (siteKey || secret) {
+  if (siteKey) {
+    if (!secret) {
+      console.warn(
+        "[contact] TURNSTILE_SECRET_KEY missing while site key is set; failing closed",
+      );
+      return { error: "Please complete the verification challenge." };
+    }
     const token = String(
       formData.get("cf-turnstile-response") ??
         formData.get("turnstileToken") ??
@@ -64,6 +70,10 @@ export async function submitContact(
     if (!ok) {
       return { error: "Please complete the verification challenge." };
     }
+  } else if (secret) {
+    console.warn(
+      "[contact] Turnstile site key missing while secret is set; honeypot-only",
+    );
   }
 
   const { name, email, message } = parsed.data;

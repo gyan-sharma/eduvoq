@@ -1,6 +1,7 @@
 import {
   eachKolkataDate,
   fromKolkata,
+  normalizeToKolkataMinute,
   toKolkataParts,
 } from "@/lib/kolkata";
 
@@ -110,7 +111,7 @@ export function isAlignedSlot(input: {
   windows: AvailabilityWindow[];
   expertId?: string;
 }): boolean {
-  const parts = toKolkataParts(input.startsAt);
+  const parts = toKolkataParts(normalizeToKolkataMinute(input.startsAt));
   return input.windows.some((window) => {
     if (input.expertId && window.expertId !== input.expertId) return false;
     if (window.weekday !== parts.weekday) return false;

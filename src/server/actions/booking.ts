@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import {
   BookingStatus,
   NotificationType,
+  Prisma,
   Role,
   type ConsultationService,
 } from "@prisma/client";
@@ -13,13 +14,16 @@ import {
   sendExpertBookingEmail,
 } from "@/lib/email";
 import { logger } from "@/lib/logger";
-import { formatKolkata } from "@/lib/kolkata";
+import { formatKolkata, normalizeToKolkataMinute } from "@/lib/kolkata";
 import { isUniqueConstraintError } from "@/lib/prisma-errors";
 import {
   cancelBookingSchema,
   createBookingSchema,
 } from "@/lib/validators/booking";
-import { pickExpertsForSlot } from "@/server/booking-assign";
+import {
+  lockExpertInterval,
+  pickExpertsForSlot,
+} from "@/server/booking-assign";
 import { prisma } from "@/server/db";
 import { isFlagEnabled } from "@/server/flags";
 import { requireBooker, requireSession } from "@/server/rbac";
@@ -37,12 +41,19 @@ class SlotTakenError extends Error {
   }
 }
 
+class IntervalConflictError extends Error {
+  constructor() {
+    super("INTERVAL_CONFLICT");
+    this.name = "IntervalConflictError";
+  }
+}
+
 function firstZodError(error: { issues: { message: string }[] }): string {
   return error.issues[0]?.message ?? "Invalid input.";
 }
 
 function actionError(error: unknown): BookingActionState {
-  if (error instanceof SlotTakenError) {
+  if (error instanceof SlotTakenError || error instanceof IntervalConflictError) {
     return { error: "That time is no longer available. Pick another slot." };
   }
   if (error instanceof Error) {
@@ -94,10 +105,11 @@ export async function createBooking(
   const service = await loadActiveService(parsed.data.serviceSlug);
   if (!service) return { error: "That consultation is not available." };
 
-  const startsAt = new Date(parsed.data.startsAt);
-  if (Number.isNaN(startsAt.getTime())) {
+  const requested = new Date(parsed.data.startsAt);
+  if (Number.isNaN(requested.getTime())) {
     return { error: "Choose a valid time slot." };
   }
+  const startsAt = normalizeToKolkataMinute(requested);
   if (startsAt.getTime() <= Date.now()) {
     return { error: "That time has already passed." };
   }
@@ -113,44 +125,48 @@ export async function createBooking(
   try {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        const created = await prisma.$transaction(async (tx) => {
-          const ranked = await pickExpertsForSlot(
-            tx,
-            service,
-            startsAt,
-            endsAt,
-            exclude,
-          );
-          const chosen = service.expertId
-            ? ranked.find((id) => id === service.expertId)
-            : ranked[0];
-          if (!chosen) throw new SlotTakenError();
-          exclude = [chosen];
-          return tx.booking.create({
-            data: {
-              serviceId: service.id,
-              expertId: chosen,
-              customerId: user.id,
+        const created = await prisma.$transaction(
+          async (tx) => {
+            const ranked = await pickExpertsForSlot(
+              tx,
+              service,
               startsAt,
               endsAt,
-              status: BookingStatus.PENDING_PAYMENT,
-              notes,
-            },
-          });
-        });
+              exclude,
+            );
+            const chosen = service.expertId
+              ? ranked.find((id) => id === service.expertId)
+              : ranked[0];
+            if (!chosen) throw new SlotTakenError();
+            exclude = [chosen];
+            const free = await lockExpertInterval(tx, chosen, startsAt, endsAt);
+            if (!free) throw new IntervalConflictError();
+            return tx.booking.create({
+              data: {
+                serviceId: service.id,
+                expertId: chosen,
+                customerId: user.id,
+                startsAt,
+                endsAt,
+                status: BookingStatus.PENDING_PAYMENT,
+                notes,
+              },
+            });
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+        );
         createdId = created.id;
         createdExpertId = created.expertId;
         break;
       } catch (error) {
         if (error instanceof SlotTakenError) throw error;
-        if (
-          isUniqueConstraintError(error) &&
-          attempt === 0 &&
-          !service.expertId
-        ) {
+        const retryable =
+          isUniqueConstraintError(error) ||
+          error instanceof IntervalConflictError;
+        if (retryable && attempt === 0 && !service.expertId) {
           continue;
         }
-        if (isUniqueConstraintError(error)) throw new SlotTakenError();
+        if (retryable) throw new SlotTakenError();
         throw error;
       }
     }

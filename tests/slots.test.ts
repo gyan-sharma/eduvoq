@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { fromKolkata, toKolkataParts } from "@/lib/kolkata";
+import {
+  fromKolkata,
+  normalizeToKolkataMinute,
+  toKolkataParts,
+} from "@/lib/kolkata";
 import {
   generateSlots,
   isAlignedSlot,
   uniqueSlotStarts,
 } from "@/lib/slots";
+import { intervalLockFrom } from "@/server/booking-assign";
 import { reminderWindow } from "@/server/jobs/reminders";
 import { UNPAID_TIMEOUT_MS } from "@/server/jobs/unpaid-timeout";
 
@@ -22,6 +27,14 @@ describe("kolkata conversion", () => {
     const utc = fromKolkata(2026, 9, 14, 0);
     expect(utc.toISOString()).toBe("2026-09-13T18:30:00.000Z");
     expect(toKolkataParts(utc).day).toBe(14);
+  });
+
+  it("floors seconds and milliseconds to the Kolkata minute", () => {
+    const exact = fromKolkata(2026, 9, 14, 10 * 60);
+    const jittered = new Date(exact.getTime() + 30_000 + 7);
+    expect(normalizeToKolkataMinute(jittered).toISOString()).toBe(
+      exact.toISOString(),
+    );
   });
 });
 
@@ -155,6 +168,30 @@ describe("isAlignedSlot", () => {
         windows: [{ expertId: "e1", weekday: 1, startMin: 10 * 60, endMin: 13 * 60 }],
       }),
     ).toBe(false);
+  });
+
+  it("strips seconds before testing the IST grid", () => {
+    const startsAt = new Date(
+      fromKolkata(2026, 9, 14, 11 * 60).getTime() + 45_000,
+    );
+    expect(
+      isAlignedSlot({
+        durationMinutes: 60,
+        startsAt,
+        windows: [{ expertId: "e1", weekday: 1, startMin: 10 * 60, endMin: 13 * 60 }],
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("interval lock window", () => {
+  it("includes a 2h booking start when locking a later 1h slot", () => {
+    const twoHourStart = fromKolkata(2026, 9, 14, 10 * 60);
+    const oneHourStart = fromKolkata(2026, 9, 14, 11 * 60);
+    const oneHourEnd = fromKolkata(2026, 9, 14, 12 * 60);
+    const lockFrom = intervalLockFrom(oneHourStart);
+    expect(lockFrom.getTime()).toBeLessThanOrEqual(twoHourStart.getTime());
+    expect(twoHourStart.getTime()).toBeLessThan(oneHourEnd.getTime());
   });
 });
 

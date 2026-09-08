@@ -37,6 +37,12 @@ export function fromKolkata(
   return new Date(Date.UTC(year, month - 1, day, 0, minuteOfDay) - IST_OFFSET_MS);
 }
 
+/** Floor an instant to the Asia/Kolkata minute (drop seconds/ms). */
+export function normalizeToKolkataMinute(date: Date): Date {
+  const parts = toKolkataParts(date);
+  return fromKolkata(parts.year, parts.month, parts.day, parts.minuteOfDay);
+}
+
 export function startOfKolkataDay(date: Date): Date {
   const p = toKolkataParts(date);
   return fromKolkata(p.year, p.month, p.day, 0);

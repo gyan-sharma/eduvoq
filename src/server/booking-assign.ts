@@ -6,14 +6,54 @@ import {
   type Prisma,
 } from "@prisma/client";
 import { addKolkataDays, startOfKolkataDay, toKolkataParts } from "@/lib/kolkata";
-import { isAlignedSlot } from "@/lib/slots";
+import { intervalsOverlap, isAlignedSlot } from "@/lib/slots";
 
 const OCCUPYING: BookingStatus[] = [
   BookingStatus.PENDING_PAYMENT,
   BookingStatus.CONFIRMED,
 ];
 
+/** Longer than any v1 service so a prior 2h hold is included in the lock range. */
+export const INTERVAL_LOCK_LOOKBACK_MS = 4 * 60 * 60 * 1000;
+
 type Tx = Prisma.TransactionClient;
+
+export function intervalLockFrom(startsAt: Date): Date {
+  return new Date(startsAt.getTime() - INTERVAL_LOCK_LOOKBACK_MS);
+}
+
+/** Lock expert + overlapping Booking rows (FOR UPDATE), then re-check interval occupancy. */
+export async function lockExpertInterval(
+  tx: Tx,
+  expertId: string,
+  startsAt: Date,
+  endsAt: Date,
+): Promise<boolean> {
+  await tx.$queryRaw`SELECT id FROM User WHERE id = ${expertId} FOR UPDATE`;
+
+  const lockFrom = intervalLockFrom(startsAt);
+  const rows = await tx.$queryRaw<
+    Array<{ id: string; startsAt: Date; endsAt: Date; status: string }>
+  >`
+    SELECT id, startsAt, endsAt, status
+    FROM Booking
+    WHERE expertId = ${expertId}
+      AND startsAt >= ${lockFrom}
+      AND startsAt < ${endsAt}
+    FOR UPDATE
+  `;
+
+  return !rows.some(
+    (row) =>
+      OCCUPYING.includes(row.status as BookingStatus) &&
+      intervalsOverlap(
+        startsAt,
+        endsAt,
+        new Date(row.startsAt),
+        new Date(row.endsAt),
+      ),
+  );
+}
 
 export async function pickExpertsForSlot(
   tx: Tx,

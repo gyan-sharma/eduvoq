@@ -50,7 +50,9 @@ After MySQL is up: `pnpm db:migrate && pnpm db:seed`. Dev admin is `admin@eduvoq
 | `pnpm build` | Production build (`output: "standalone"`) |
 | `pnpm start` | Run the production server |
 | `pnpm lint` | ESLint (`next/core-web-vitals`) |
-| `pnpm test` | Vitest (age-gate unit tests) |
-| `pnpm db:seed` | Seed admin, catalog, consultation services |
+| `pnpm test` | Vitest (age-gate + booking slot tests) |
+| `pnpm db:seed` | Seed admin, expert hours, catalog, consultation services |
+
+`GET /api/cron` requires `Authorization: Bearer $CRON_SECRET`. Jobs use `CronLease` so overlapping ticks skip. Unpaid `PENDING_PAYMENT` bookings older than 15 minutes are released.
 
 Do not commit secrets or the `chalknpencil-archive/` snapshot.

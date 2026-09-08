@@ -35,6 +35,7 @@ services:
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
       EMAIL_FROM: ${EMAIL_FROM:-hello@eduvoq.com}
+      CRON_SECRET: ${CRON_SECRET:-}
       PORT: 3000
     depends_on:
       mysql:

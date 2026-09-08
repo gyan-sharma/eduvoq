@@ -58,3 +58,58 @@ export async function sendResetEmail(to: string, token: string): Promise<void> {
     text: `Reset your password by opening this link (valid for 1 hour):\n${url}\n\nIf you did not request a reset, ignore this message.`,
   });
 }
+
+export async function sendBookingCreatedEmail(input: {
+  to: string;
+  title: string;
+  whenLabel: string;
+  meetingUrl: string | null;
+  expertName: string | null;
+}): Promise<void> {
+  const meeting = input.meetingUrl
+    ? `Meeting link: ${input.meetingUrl}`
+    : "Your expert will share a meeting link before the session.";
+  const expert = input.expertName ? `\nExpert: ${input.expertName}` : "";
+  await sendEmail({
+    to: input.to,
+    subject: `Booking recorded: ${input.title}`,
+    text: `Your EduVoq consultation is held for 15 minutes pending payment.\n\n${input.title}\nWhen: ${input.whenLabel}${expert}\n${meeting}\n\nManage bookings: ${appUrl()}/account/bookings\n\nPayment confirmation lands in a later release; unpaid holds expire after 15 minutes.`,
+  });
+}
+
+export async function sendBookingReminderEmail(input: {
+  to: string;
+  title: string;
+  whenLabel: string;
+  meetingUrl: string | null;
+  horizon: "24h" | "1h";
+}): Promise<void> {
+  const heading =
+    input.horizon === "24h"
+      ? "Your consultation is in 24 hours."
+      : "Your consultation starts in about an hour.";
+  const meeting = input.meetingUrl
+    ? `Join: ${input.meetingUrl}`
+    : "The meeting link will be on your bookings page if the expert has set one.";
+  await sendEmail({
+    to: input.to,
+    subject:
+      input.horizon === "24h"
+        ? `Reminder: ${input.title} tomorrow`
+        : `Starting soon: ${input.title}`,
+    text: `${heading}\n\n${input.title}\nWhen: ${input.whenLabel}\n${meeting}\n\n${appUrl()}/account/bookings`,
+  });
+}
+
+export async function sendExpertBookingEmail(input: {
+  to: string;
+  title: string;
+  whenLabel: string;
+  customerName: string | null;
+}): Promise<void> {
+  await sendEmail({
+    to: input.to,
+    subject: `New consultation: ${input.title}`,
+    text: `A member booked ${input.title}.\n\nWhen: ${input.whenLabel}\nCustomer: ${input.customerName ?? "Member"}\n\nAdd a meeting URL from Account → Bookings.`,
+  });
+}

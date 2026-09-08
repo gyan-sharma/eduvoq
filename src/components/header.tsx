@@ -11,6 +11,12 @@ export function Header() {
           EduVoq
         </Link>
         <nav className="flex items-center gap-4 text-sm text-stone-700">
+          <Link href="/consult" className="hover:text-emerald-800">
+            Consult
+          </Link>
+          <Link href="/account/bookings" className="hover:text-emerald-800">
+            Bookings
+          </Link>
           <Link href="/account" className="hover:text-emerald-800">
             Account
           </Link>

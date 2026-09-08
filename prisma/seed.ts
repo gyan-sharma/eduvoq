@@ -1,5 +1,6 @@
 import {
   ConsultationMode,
+  CronJobName,
   PrismaClient,
   ProductType,
   Role,
@@ -48,6 +49,68 @@ async function main() {
       dateOfBirth: new Date(Date.UTC(1990, 0, 1)),
     },
   });
+
+  const expert = await prisma.user.upsert({
+    where: { email: "expert@eduvoq.com" },
+    update: {
+      username: "expert",
+      name: "EduVoq Expert",
+      role: Role.EXPERT,
+      status: UserStatus.ACTIVE,
+      passwordHash,
+      emailVerified: new Date(),
+      dateOfBirth: new Date(Date.UTC(1985, 5, 15)),
+    },
+    create: {
+      email: "expert@eduvoq.com",
+      username: "expert",
+      name: "EduVoq Expert",
+      role: Role.EXPERT,
+      status: UserStatus.ACTIVE,
+      emailVerified: new Date(),
+      passwordHash,
+      dateOfBirth: new Date(Date.UTC(1985, 5, 15)),
+    },
+  });
+
+  await prisma.expertAvailability.deleteMany({ where: { expertId: expert.id } });
+  await prisma.expertAvailability.createMany({
+    data: [1, 2, 3, 4, 5, 6].map((weekday) => ({
+      expertId: expert.id,
+      weekday,
+      startMin: 10 * 60,
+      endMin: 18 * 60,
+      timezone: "Asia/Kolkata",
+    })),
+  });
+
+  const flags: Array<{ key: string; enabled: boolean }> = [
+    { key: "registrations", enabled: true },
+    { key: "student_self_register", enabled: false },
+    { key: "community", enabled: true },
+    { key: "forum", enabled: true },
+    { key: "commerce", enabled: true },
+    { key: "commerce_physical", enabled: true },
+    { key: "bookings", enabled: true },
+    { key: "wallet_spend", enabled: false },
+    { key: "ai_assistants", enabled: false },
+    { key: "events_registration", enabled: true },
+  ];
+  for (const flag of flags) {
+    await prisma.featureFlag.upsert({
+      where: { key: flag.key },
+      update: { enabled: flag.enabled },
+      create: flag,
+    });
+  }
+
+  for (const job of Object.values(CronJobName)) {
+    await prisma.cronLease.upsert({
+      where: { job },
+      create: { job, lockedUntil: new Date(0) },
+      update: {},
+    });
+  }
 
   await prisma.shippingRate.upsert({
     where: { slug: "metro" },

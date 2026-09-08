@@ -1,11 +1,14 @@
 import {
   ConsultationMode,
+  Prisma,
   PrismaClient,
   ProductType,
   Role,
   UserStatus,
 } from "@prisma/client";
 import { hashPassword } from "../src/lib/password";
+
+import { cmsPages } from "../src/content/cms";
 
 const prisma = new PrismaClient();
 
@@ -233,6 +236,28 @@ async function main() {
       entitlements: { webinars: true },
     },
   });
+
+  for (const page of cmsPages) {
+    const bodyJson = page.bodyJson as Prisma.InputJsonValue;
+    await prisma.cmsPage.upsert({
+      where: { slug: page.slug },
+      update: {
+        title: page.title,
+        bodyJson,
+        seoTitle: page.seoTitle ?? null,
+        seoDescription: page.seoDescription ?? null,
+        published: true,
+      },
+      create: {
+        slug: page.slug,
+        title: page.title,
+        bodyJson,
+        seoTitle: page.seoTitle ?? null,
+        seoDescription: page.seoDescription ?? null,
+        published: true,
+      },
+    });
+  }
 }
 
 main()

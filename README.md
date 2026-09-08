@@ -2,7 +2,7 @@
 
 Connecting Educators.
 
-This repository is a greenfield rebuild of the EduVoq public site as a self-hosted Next.js application. This README covers **local development only**.
+This repository is a greenfield rebuild of the EduVoq public site as a self-hosted Next.js application. Local steps are below. Production on droplet **neojn** is documented in [docs/deploy-neojn.md](docs/deploy-neojn.md).
 
 ## Prerequisites
 
@@ -77,6 +77,25 @@ India checkout uses **Razorpay** (default). “Pay with card (international)” 
 The `/pricing` webinar pack is a **one-time ₹10 / 3 months** order. Do not use Razorpay Subscriptions or Stripe Billing. `/account/subscriptions` and `/account/wallet` are display-only (`wallet_spend` off).
 
 Placeholder `i-m-a-product-*` SKUs are not sold.
+
+## Production (neojn)
+
+Canonical URL: `https://www.eduvoq.com`.
+
+| | Production |
+| --- | --- |
+| Host | DigitalOcean droplet **neojn**, `blr1`, `68.183.85.203` |
+| DNS | A `@` and `www` → `68.183.85.203` |
+| App | systemd `eduvoq.service`, `127.0.0.1:3110`, `www-data`, heap 384 MB |
+| Proxy | Host Caddy `caddy/eduvoq.caddy` (`www` → `:3110`; apex 301 → www) |
+| DB | Host MySQL user `eduvoq`, database `eduvoq_db` (not Compose) |
+| Files | `FILE_DRIVER=local`, `/var/www/eduvoq/storage` (no MinIO container) |
+| Cron | systemd timer → `http://127.0.0.1:3110/api/cron` with `CRON_SECRET` |
+| Backup | `scripts/backup-eduvoq-db.sh` dumps **`eduvoq_db` only** |
+
+Docker Compose and MinIO are **dev only**. Do not run them on the droplet. Do not commit `/var/www/eduvoq/.env` or MySQL passwords.
+
+See [docs/deploy-neojn.md](docs/deploy-neojn.md).
 
 ## Scripts
 

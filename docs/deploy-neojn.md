@@ -50,8 +50,6 @@ FLUSH PRIVILEGES;
 mysql://eduvoq:<password>@127.0.0.1:3306/eduvoq_db
 ```
 
-Then `prisma migrate deploy` against that URL (from `/var/www/eduvoq`).
-
 Dump credentials for backups live in `/var/www/eduvoq/.my.cnf` (mode `0640`, not in git):
 
 ```ini
@@ -70,13 +68,37 @@ chmod 0750 /var/www/eduvoq/storage /var/backups/eduvoq
 install -m 0640 -o www-data -g www-data /dev/null /var/www/eduvoq/.env
 ```
 
-`FILE_DRIVER=local`, `FILE_LOCAL_ROOT=/var/www/eduvoq/storage`. Uploads must survive app deploys (storage is outside `.next/standalone`). No MinIO, no Caddy `/media/*` proxy.
+Uploads must survive app deploys (storage is outside `.next/standalone`). No MinIO, no Caddy `/media/*` proxy.
+
+## Required production `.env` (before enable --now)
+
+Do **not** copy `.env.example` as-is. Dev values (`DATABASE_URL=…/eduvoq`, `AUTH_URL=http://localhost:3000`, `FILE_LOCAL_ROOT=./storage`, empty `AUTH_SECRET` / `CRON_SECRET`) will point Prisma at the wrong database, issue localhost cookies, and write uploads under `.next/standalone/storage` (wiped on the next deploy). `EnvironmentFile=-` does not fail the unit when keys are missing.
+
+Edit `/var/www/eduvoq/.env` (mode `0640`, owner `www-data`) and set **all** of the following before any `systemctl enable --now`:
+
+```
+DATABASE_URL=mysql://eduvoq:<password>@127.0.0.1:3306/eduvoq_db
+AUTH_SECRET=                 # openssl rand -base64 32  (≥ 32 bytes; required)
+AUTH_URL=https://www.eduvoq.com
+AUTH_COOKIE_DOMAIN=.eduvoq.com
+CRON_SECRET=                 # openssl rand -hex 32
+FILE_DRIVER=local
+FILE_LOCAL_ROOT=/var/www/eduvoq/storage
+EMAIL_FROM=hello@eduvoq.com
+CONTACT_TO=hello@eduvoq.com
+```
+
+Also set SMTP, OAuth, Turnstile, Razorpay, and Stripe keys on the droplet as needed. `PORT` / `HOSTNAME` / `NODE_OPTIONS` are forced by `eduvoq.service`. `NEXT_PUBLIC_*` must be present at `pnpm build` if the client bundle needs them.
+
+Do not start systemd until `DATABASE_URL` contains `eduvoq_db`, `AUTH_URL` is `https://www.eduvoq.com`, `FILE_LOCAL_ROOT` is `/var/www/eduvoq/storage`, and `AUTH_SECRET` / `CRON_SECRET` are non-empty.
+
+Then `prisma migrate deploy` against that `DATABASE_URL` (from `/var/www/eduvoq`).
 
 ## App + systemd
 
 Node from **NodeSource LTS**. Next `output: "standalone"`.
 
-After `pnpm build` on the host (or a matching Linux builder):
+After the `.env` above is filled and `pnpm build` on the host (or a matching Linux builder):
 
 ```bash
 # repo checkout at /var/www/eduvoq
@@ -101,7 +123,7 @@ systemctl reload caddy
 
 ## Cron (`GET /api/cron`)
 
-Every 5 minutes, loopback only, `Authorization: Bearer $CRON_SECRET`. Do not expose cron on the public hostname.
+Every 5 minutes, loopback only, `Authorization: Bearer $CRON_SECRET`. Do not expose cron on the public hostname. `CRON_SECRET` must already be set in `/var/www/eduvoq/.env` (see above) — do not enable the timer against an empty file.
 
 ```bash
 install -m 0644 scripts/eduvoq-cron.service /etc/systemd/system/eduvoq-cron.service

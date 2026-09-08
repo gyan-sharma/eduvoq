@@ -1,0 +1,858 @@
+// EduVoq greenfield schema. MySQL. Money in Int paise. DateTime UTC.
+// Files are polymorphic (ownerType + ownerId) — do not add Product.images FileObject[].
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  EDUCATOR
+  EXPERT
+  STUDENT
+  PARENT
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  PENDING_PROFILE
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum PostKind {
+  BLOG
+  NEWS
+  EMAGAZINE
+  SUBMISSION
+}
+
+enum PostStatus {
+  DRAFT
+  IN_REVIEW
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+}
+
+enum ResourceKind {
+  LEARNING_MATERIAL
+  CLASS_NOTES
+  SAMPLE_PAPER
+  LESSON_PLAN
+  SYLLABUS
+  OTHER
+}
+
+enum ResourceStatus {
+  IN_REVIEW
+  PUBLISHED
+  REJECTED
+}
+
+enum ResourceVisibility {
+  PUBLIC
+  SUBSCRIBER
+  EDUCATOR_ONLY
+}
+
+enum Board {
+  CBSE
+  ICSE
+  IB
+  STATE_BOARD
+  KVS
+  NVS
+  OTHER
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum ConsultationMode {
+  ONLINE
+  CUSTOMER_PLACE
+  EXPERT_PLACE
+}
+
+enum ProductType {
+  PHYSICAL
+  DIGITAL
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  FULFILLING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  RAZORPAY
+  STRIPE
+  WALLET
+  FREE
+}
+
+enum PaymentKind {
+  ORDER
+  BOOKING
+  PLAN_PACK
+  WALLET_TOPUP
+  EVENT
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELED
+}
+
+enum NotificationType {
+  FOLLOW
+  BOOKING
+  COMMENT
+  REPLY
+  MODERATION
+  ORDER
+  SYSTEM
+  GROUP
+  FORUM
+}
+
+enum FileOwnerType {
+  USER
+  POST
+  PRODUCT
+  RESOURCE
+  SERVICE
+  EVENT
+  CMS
+}
+
+enum FileAcl {
+  PUBLIC
+  PRIVATE
+}
+
+enum ConsentType {
+  TOS
+  PRIVACY
+  PARENTAL_ATTESTATION
+  MARKETING
+}
+
+enum ReportStatus {
+  OPEN
+  DISMISSED
+  ACTIONED
+}
+
+enum CronJobName {
+  REMINDERS
+  UNPAID_TIMEOUT
+  DIGEST
+  SUB_EXPIRY
+}
+
+model User {
+  id                String     @id @default(cuid())
+  name              String?    @db.VarChar(191)
+  email             String     @unique
+  emailVerified     DateTime?
+  image             String?
+  passwordHash      String?
+  // Optional so Google createUser cannot fail uniqueness; adapter generateUsername()
+  // runs BEFORE insert. Unique allows multiple NULLs in MySQL.
+  username          String?    @unique @db.VarChar(32)
+  usernameChangedAt DateTime?
+  role              Role       @default(EDUCATOR)
+  status            UserStatus @default(PENDING_VERIFICATION)
+  dateOfBirth       DateTime?  @db.Date
+  parentId          String?
+  parent            User?      @relation("ParentChildren", fields: [parentId], references: [id])
+  children          User[]     @relation("ParentChildren")
+  headline          String?    @db.VarChar(191)
+  bio               String?    @db.Text
+  schoolName        String?    @db.VarChar(191)
+  city              String?    @db.VarChar(96)
+  state             String?    @db.VarChar(96)
+  boardAffiliation  Board?
+  subjects          Json?
+  classesTaught     Json?
+  linkedinUrl       String?
+  isProfilePublic   Boolean    @default(true)
+  tokenVersion      Int        @default(0) // increment on ban / password reset; JWT must match
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  accounts           Account[]
+  sessions           Session[] // unused at runtime (JWT strategy); kept for adapter
+  authenticators     Authenticator[]
+  profile            Profile?
+  posts              Post[]
+  comments           Comment[]
+  follows            Follow[]              @relation("follower")
+  followers          Follow[]              @relation("following")
+  bookingsAsCustomer Booking[]             @relation("customer")
+  bookingsAsExpert   Booking[]             @relation("expert")
+  expertAvailability ExpertAvailability[]
+  orders             Order[]
+  cart               Cart?
+  addresses          Address[]
+  notifications      Notification[]
+  resources          Resource[]
+  resourceDownloads  ResourceDownload[]
+  consents           Consent[]
+  auditEvents        AuditEvent[]
+  forumThreads       ForumThread[]
+  forumPosts         ForumPost[]
+  groupMemberships   GroupMember[]
+  groupPosts         GroupPost[]
+  feedPosts          FeedPost[]
+  reactions          Reaction[]
+  reportsFiled       Report[]              @relation("reporter")
+  pollVotes          PollVote[]
+  subscriptions      Subscription[]
+  wallet             WalletAccount?
+  eventRegistrations EventRegistration[]
+  filesUploaded      FileObject[]
+
+  @@index([role, status])
+  @@index([parentId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Optional Auth.js WebAuthn table; unused in v1 Credentials/OAuth.
+model Authenticator {
+  credentialID         String  @unique
+  userId               String
+  providerAccountId    String
+  credentialPublicKey  String  @db.Text
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, credentialID])
+}
+
+model Profile {
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coverFileId String?
+  portfolio   Json? // structured extras
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String?          @db.Text
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+}
+
+model Post {
+  id             String     @id @default(cuid())
+  slug           String     @unique @db.VarChar(191)
+  title          String     @db.VarChar(255)
+  excerpt        String     @db.Text
+  bodyJson       Json
+  bodyText       String     @db.LongText // search/plain
+  kind           PostKind
+  status         PostStatus @default(DRAFT)
+  authorId       String
+  author         User       @relation(fields: [authorId], references: [id])
+  coverFileId    String?
+  seoTitle       String?
+  seoDescription String?    @db.VarChar(320)
+  publishedAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  categories     PostCategory[]
+  tags           PostTag[]
+  comments       Comment[]
+
+  @@index([status, kind, publishedAt])
+  @@fulltext([title, bodyText])
+}
+
+model Category {
+  id    String         @id @default(cuid())
+  slug  String         @unique // e-magazine, news, pedagogy
+  name  String
+  posts PostCategory[]
+}
+
+model Tag {
+  id    String    @id @default(cuid())
+  slug  String    @unique
+  name  String
+  posts PostTag[]
+}
+
+model PostCategory {
+  postId     String
+  categoryId String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([postId, categoryId])
+}
+
+model PostTag {
+  postId String
+  tagId  String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  postId     String?
+  threadId   String?
+  feedPostId String?
+  parentId   String?
+  authorId   String
+  body       String   @db.Text
+  status     String   @default("VISIBLE") // VISIBLE HIDDEN SPAM
+  createdAt  DateTime @default(now())
+  author     User     @relation(fields: [authorId], references: [id])
+  post       Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+}
+
+model CmsPage {
+  id             String   @id @default(cuid())
+  slug           String   @unique // about, privacy, services/marketing
+  title          String
+  bodyJson       Json
+  seoTitle       String?
+  seoDescription String?
+  published      Boolean  @default(true)
+  updatedAt      DateTime @updatedAt
+}
+
+model ForumCategory {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  name        String
+  description String?       @db.Text
+  sortOrder   Int           @default(0)
+  threads     ForumThread[]
+}
+
+model ForumThread {
+  id         String        @id @default(cuid())
+  categoryId String
+  authorId   String
+  title      String
+  slug       String
+  pinned     Boolean       @default(false)
+  locked     Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+  category   ForumCategory @relation(fields: [categoryId], references: [id])
+  author     User          @relation(fields: [authorId], references: [id])
+  posts      ForumPost[]
+
+  @@unique([categoryId, slug])
+  @@index([categoryId, createdAt])
+}
+
+model ForumPost {
+  id        String      @id @default(cuid())
+  threadId  String
+  authorId  String
+  parentId  String? // flat replies; null = top-level
+  bodyJson  Json
+  createdAt DateTime    @default(now())
+  thread    ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author    User        @relation(fields: [authorId], references: [id])
+  parent    ForumPost?  @relation("ForumReply", fields: [parentId], references: [id])
+  replies   ForumPost[] @relation("ForumReply")
+
+  @@index([threadId, createdAt])
+}
+
+model Group {
+  id          String        @id @default(cuid())
+  slug        String        @unique // job-alerts, social-network
+  name        String
+  description String?       @db.Text
+  isOfficial  Boolean       @default(false)
+  createdById String
+  memberships GroupMember[]
+  posts       GroupPost[]
+}
+
+model GroupMember {
+  groupId String
+  userId  String
+  role    String @default("MEMBER") // group role, not User.role
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+}
+
+model GroupPost {
+  id        String     @id @default(cuid())
+  groupId   String
+  authorId  String
+  bodyJson  Json
+  pollJson  Json? // { question, options: string[] } — votes in PollVote
+  createdAt DateTime   @default(now())
+  group     Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author    User       @relation(fields: [authorId], references: [id])
+  votes     PollVote[]
+}
+
+model PollVote {
+  id          String    @id @default(cuid())
+  groupPostId String
+  userId      String
+  optionIdx   Int
+  createdAt   DateTime  @default(now())
+  groupPost   GroupPost @relation(fields: [groupPostId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupPostId, userId])
+}
+
+model FeedPost {
+  id        String   @id @default(cuid())
+  authorId  String
+  bodyJson  Json
+  createdAt DateTime @default(now())
+  author    User     @relation(fields: [authorId], references: [id])
+
+  @@index([createdAt])
+}
+
+model Reaction {
+  id         String   @id @default(cuid())
+  userId     String
+  targetType String // FORUM_POST FEED_POST GROUP_POST
+  targetId   String
+  emoji      String   @db.VarChar(16)
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetType, targetId, emoji])
+  @@index([targetType, targetId])
+}
+
+model Report {
+  id         String       @id @default(cuid())
+  reporterId String
+  targetType String
+  targetId   String
+  reason     String       @db.VarChar(191)
+  status     ReportStatus @default(OPEN)
+  createdAt  DateTime     @default(now())
+  reporter   User         @relation("reporter", fields: [reporterId], references: [id])
+
+  @@index([status, createdAt])
+}
+
+model ConsultationService {
+  id              String           @id @default(cuid())
+  slug            String           @unique
+  title           String
+  descriptionJson Json
+  durationMinutes Int
+  pricePaise      Int // seed: Career 249900, Psychology 299900, Admission 499900
+  mode            ConsultationMode @default(ONLINE)
+  isActive        Boolean          @default(true)
+  expertId        String? // null = assign any available EXPERT at booking time
+  bookings        Booking[]
+}
+
+model ExpertAvailability {
+  id       String @id @default(cuid())
+  expertId String
+  weekday  Int // 0-6 Asia/Kolkata
+  startMin Int
+  endMin   Int
+  timezone String @default("Asia/Kolkata")
+  expert   User   @relation(fields: [expertId], references: [id], onDelete: Cascade)
+
+  @@index([expertId, weekday])
+}
+
+model Booking {
+  id              String        @id @default(cuid())
+  serviceId       String
+  expertId        String
+  customerId      String
+  startsAt        DateTime
+  endsAt          DateTime
+  status          BookingStatus @default(PENDING_PAYMENT)
+  meetingUrl      String?       @db.VarChar(512)
+  notes           String?       @db.Text
+  razorpayOrderId String?
+  createdAt       DateTime      @default(now())
+  service         ConsultationService @relation(fields: [serviceId], references: [id])
+  expert          User                @relation("expert", fields: [expertId], references: [id])
+  customer        User                @relation("customer", fields: [customerId], references: [id])
+
+  @@unique([expertId, startsAt])
+  @@index([customerId, startsAt])
+}
+
+model Event {
+  id              String              @id @default(cuid())
+  slug            String              @unique
+  title           String
+  descriptionJson Json
+  startsAt        DateTime
+  endsAt          DateTime?
+  location        String?
+  isOnline        Boolean             @default(true)
+  capacity        Int?
+  pricePaise      Int                 @default(0)
+  published       Boolean             @default(false)
+  registrations   EventRegistration[]
+}
+
+model EventRegistration {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  status    String   @default("REGISTERED")
+  createdAt DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+model Product {
+  id              String          @id @default(cuid())
+  slug            String          @unique
+  name            String
+  descriptionJson Json
+  type            ProductType
+  pricePaise      Int
+  currency        String          @default("INR")
+  sku             String          @unique
+  stock           Int? // null = digital / unlimited; decrement in tx
+  hsnSac          String?         @db.VarChar(16)
+  weightGrams     Int?
+  isActive        Boolean         @default(true)
+  categoryId      String
+  category        ProductCategory @relation(fields: [categoryId], references: [id])
+  orderItems      OrderItem[]
+  cartItems       CartItem[]
+
+  @@index([categoryId, isActive])
+}
+
+model ProductCategory {
+  id       String    @id @default(cuid())
+  slug     String    @unique
+  name     String
+  products Product[]
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String
+  productId String
+  qty       Int
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, productId])
+}
+
+model Address {
+  id         String  @id @default(cuid())
+  userId     String
+  name       String
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  postalCode String
+  country    String  @default("IN")
+  phone      String?
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders     Order[]
+}
+
+model Order {
+  id                String      @id @default(cuid())
+  userId            String
+  status            OrderStatus @default(PENDING_PAYMENT)
+  subtotalPaise     Int
+  taxPaise          Int         @default(0)
+  shippingPaise     Int         @default(0) // metro 7900 / rest 12900 paise
+  totalPaise        Int
+  currency          String      @default("INR")
+  invoiceNumber     String?     @unique
+  buyerGstin        String?
+  shippingAddressId String?
+  razorpayOrderId   String?     @unique
+  razorpayPaymentId String?
+  expiresAt         DateTime? // 15 min; aligned with Razorpay order expiry
+  createdAt         DateTime    @default(now())
+  user              User        @relation(fields: [userId], references: [id])
+  shippingAddress   Address?    @relation(fields: [shippingAddressId], references: [id])
+  items             OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  qty       Int
+  unitPaise Int
+  taxPaise  Int     @default(0)
+  hsnSac    String?
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model PaymentEvent {
+  id              String          @id @default(cuid())
+  provider        PaymentProvider
+  providerEventId String // Razorpay/Stripe event id
+  kind            PaymentKind
+  orderId         String?
+  bookingId       String?
+  payload         Json
+  processedAt     DateTime        @default(now())
+
+  @@unique([provider, providerEventId])
+  @@index([kind, processedAt])
+}
+
+model ShippingRate {
+  id    String @id @default(cuid())
+  slug  String @unique // metro | rest_of_india
+  name  String
+  paise Int
+}
+
+model WalletAccount {
+  id           String         @id @default(cuid())
+  userId       String         @unique
+  balancePaise Int            @default(0)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledger       WalletLedger[]
+}
+
+model WalletLedger {
+  id         String        @id @default(cuid())
+  accountId  String
+  deltaPaise Int
+  reason     String
+  createdAt  DateTime      @default(now())
+  account    WalletAccount @relation(fields: [accountId], references: [id])
+}
+
+model Plan {
+  id             String         @id @default(cuid())
+  slug           String         @unique // webinars-guidance
+  name           String
+  description    String         @db.Text
+  pricePaise     Int // v1: 1000 = ₹10
+  interval       String         @default("once") // v1 one-time pack, not Razorpay Subscriptions
+  durationMonths Int            @default(3)
+  entitlements   Json // { webinars: true } — NOT resources
+  subscriptions  Subscription[]
+}
+
+model Subscription {
+  id               String             @id @default(cuid())
+  userId           String
+  planId           String
+  status           SubscriptionStatus
+  currentPeriodEnd DateTime
+  razorpayOrderId  String? // one-time order id, not subscription id
+  createdAt        DateTime           @default(now())
+  user             User               @relation(fields: [userId], references: [id])
+  plan             Plan               @relation(fields: [planId], references: [id])
+
+  @@index([userId, status])
+}
+
+model FileObject {
+  id             String        @id @default(cuid())
+  bucket         String
+  objectKey      String        @unique // e.g. public/products/{id}/a.jpg or private/resources/{id}/x.pdf
+  mimeType       String
+  byteSize       Int
+  checksumSha256 String
+  acl            FileAcl       @default(PRIVATE)
+  ownerType      FileOwnerType
+  ownerId        String
+  uploadedById   String
+  uploadedBy     User          @relation(fields: [uploadedById], references: [id])
+  createdAt      DateTime      @default(now())
+  resourceAsFile Resource?     @relation("ResourceFile")
+
+  @@index([ownerType, ownerId])
+}
+
+model Resource {
+  id           String             @id @default(cuid())
+  slug         String             @unique
+  title        String
+  kind         ResourceKind
+  status       ResourceStatus     @default(IN_REVIEW)
+  visibility   ResourceVisibility @default(EDUCATOR_ONLY)
+  board        Board?
+  classLevel   String?
+  subject      String?
+  fileId       String             @unique
+  file         FileObject         @relation("ResourceFile", fields: [fileId], references: [id])
+  uploadedById String
+  uploadedBy   User               @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime           @default(now())
+  downloads    ResourceDownload[]
+
+  @@index([kind, board, classLevel, subject])
+  @@index([status, visibility])
+}
+
+model ResourceDownload {
+  id         String   @id @default(cuid())
+  resourceId String
+  userId     String
+  createdAt  DateTime @default(now())
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([resourceId, createdAt])
+}
+
+model CronLease {
+  job         CronJobName @id
+  lockedUntil DateTime
+  lastRunAt   DateTime?
+}
+
+model FeatureFlag {
+  key     String  @id
+  enabled Boolean @default(false)
+  payload Json?
+}
+
+model AuditEvent {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  action    String
+  entity    String
+  entityId  String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+model Consent {
+  id        String      @id @default(cuid())
+  userId    String
+  type      ConsentType
+  version   String
+  grantedAt DateTime    @default(now())
+  ip        String?
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  kind      String // contact career blog_pitch expert_volunteer
+  name      String
+  email     String
+  payload   Json
+  createdAt DateTime @default(now())
+}

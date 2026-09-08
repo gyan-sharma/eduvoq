@@ -55,6 +55,10 @@ export const serviceGroups: NavGroup[] = [
   },
 ];
 
+export const serviceLinks: NavLink[] = serviceGroups.flatMap(
+  (group) => group.items,
+);
+
 export const communityLinks: NavLink[] = [
   { href: "/members", label: "Members" },
   { href: "/forum", label: "Forums" },

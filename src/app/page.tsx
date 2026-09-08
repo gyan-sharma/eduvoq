@@ -1,10 +1,14 @@
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-stone-50 px-6 text-center">
-      <h1 className="text-4xl font-semibold tracking-tight text-stone-900">
+    <section className="mx-auto flex w-full max-w-3xl flex-col items-center px-6 py-24 text-center">
+      <h1 className="font-heading text-4xl font-semibold tracking-tight">
         EduVoq
       </h1>
-      <p className="mt-3 text-lg text-stone-600">Connecting Educators</p>
-    </main>
+      <p className="mt-3 text-lg text-muted-foreground">Connecting Educators</p>
+      <p className="mt-6 max-w-xl text-muted-foreground">
+        A professional network and resource hub for school teachers and K-12
+        stakeholders.
+      </p>
+    </section>
   );
 }

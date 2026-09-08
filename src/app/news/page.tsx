@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { MarketingPage } from "@/components/marketing-page";
+import { formatDateIst } from "@/lib/dates";
 import { prisma } from "@/server/db";
 
 export const dynamic = "force-dynamic";
@@ -29,14 +30,6 @@ async function getNewsPosts() {
   }
 }
 
-function formatDate(value: Date | null) {
-  if (!value) return null;
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeZone: "Asia/Kolkata",
-  }).format(value);
-}
-
 export default async function NewsPage() {
   const posts = await getNewsPosts();
 
@@ -58,7 +51,7 @@ export default async function NewsPage() {
               </h2>
               {post.publishedAt ? (
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {formatDate(post.publishedAt)}
+                  {formatDateIst(post.publishedAt)}
                 </p>
               ) : null}
               <p className="mt-3 text-base leading-7">{post.excerpt}</p>

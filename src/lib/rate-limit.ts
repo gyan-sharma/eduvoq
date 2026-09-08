@@ -69,17 +69,27 @@ export function rateLimitAuthPaths(req: NextRequest): NextResponse | null {
 }
 
 const resetWindows = new Map<string, number[]>();
+const blogSubmitWindows = new Map<string, number[]>();
 
-/** Password-reset: 5 / hour / email (in-memory, single replica). */
-export function allowPasswordResetForEmail(email: string): boolean {
+function allowPerHour(store: Map<string, number[]>, key: string, max: number) {
   const now = Date.now();
   const windowMs = 60 * 60 * 1000;
-  const stamps = (resetWindows.get(email) ?? []).filter((t) => now - t < windowMs);
-  if (stamps.length >= 5) {
-    resetWindows.set(email, stamps);
+  const stamps = (store.get(key) ?? []).filter((t) => now - t < windowMs);
+  if (stamps.length >= max) {
+    store.set(key, stamps);
     return false;
   }
   stamps.push(now);
-  resetWindows.set(email, stamps);
+  store.set(key, stamps);
   return true;
+}
+
+/** Password-reset: 5 / hour / email (in-memory, single replica). */
+export function allowPasswordResetForEmail(email: string): boolean {
+  return allowPerHour(resetWindows, email, 5);
+}
+
+/** Member blog submit: 5 / hour / user (in-memory, single replica). */
+export function allowBlogSubmitForUser(userId: string): boolean {
+  return allowPerHour(blogSubmitWindows, userId, 5);
 }

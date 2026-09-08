@@ -27,6 +27,17 @@ const nextConfig: NextConfig = {
         destination: "/services/marketing",
         permanent: true,
       },
+      { source: "/post/:slug", destination: "/blog/:slug", permanent: true },
+      {
+        source: "/submit-your-blog",
+        destination: "/blog/submit",
+        permanent: true,
+      },
+      {
+        source: "/blog-feed.xml",
+        destination: "/rss.xml",
+        permanent: true,
+      },
     ];
   },
 };

@@ -51,6 +51,6 @@ After MySQL is up: `pnpm db:migrate && pnpm db:seed`. Dev admin is `admin@eduvoq
 | `pnpm start` | Run the production server |
 | `pnpm lint` | ESLint (`next/core-web-vitals`) |
 | `pnpm test` | Vitest (age-gate unit tests) |
-| `pnpm db:seed` | Seed admin, catalog, consultation services |
+| `pnpm db:seed` | Seed admin, catalog, consultation services, sample blog posts |
 
 Do not commit secrets or the `chalknpencil-archive/` snapshot.

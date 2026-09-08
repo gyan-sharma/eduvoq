@@ -1,8 +1,9 @@
 import nodemailer from "nodemailer";
 import { logger } from "@/lib/logger";
+import { siteUrl } from "@/lib/site";
 
 export function appUrl(): string {
-  return process.env.AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  return siteUrl();
 }
 
 type SendEmailInput = {

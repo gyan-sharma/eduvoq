@@ -3,6 +3,7 @@ import { stripeCheckoutReady, stripeConfig, stripeWebhookReady } from "@/lib/pay
 import {
   INR_CURRENCY,
   PaymentError,
+  captureEventId,
   fromGatewayNotes,
   inrPaise,
   stripeCheckoutExpiresAt,
@@ -53,6 +54,8 @@ export async function createStripeCheckoutSession(args: {
 }): Promise<{ id: string; url: string; paymentIntentId: string | null }> {
   const money = inrPaise(args.amountPaise);
   const stripe = getStripe();
+  // Stripe Checkout will not expire sooner than 30 minutes; cron expires the
+  // session at the 15-minute local hold so the two clocks match.
   const expiresAt = Math.floor(stripeCheckoutExpiresAt().getTime() / 1000);
   // One-time payment only. Do not call stripe.subscriptions or Billing APIs.
   const session = await stripe.checkout.sessions.create({
@@ -86,6 +89,60 @@ export async function createStripeCheckoutSession(args: {
   return { id: session.id, url: session.url, paymentIntentId };
 }
 
+export type StripeSessionView = {
+  id: string;
+  url: string | null;
+  status: string | null;
+  paymentStatus: string | null;
+  paymentIntentId: string | null;
+};
+
+export async function retrieveStripeCheckoutSession(
+  sessionId: string,
+): Promise<StripeSessionView | null> {
+  if (!sessionId.startsWith("cs_")) return null;
+  const session = await getStripe().checkout.sessions.retrieve(sessionId);
+  const paymentIntentId =
+    typeof session.payment_intent === "string"
+      ? session.payment_intent
+      : session.payment_intent?.id ?? null;
+  return {
+    id: session.id,
+    url: session.url,
+    status: session.status,
+    paymentStatus: session.payment_status,
+    paymentIntentId,
+  };
+}
+
+export function stripeSessionIsOpen(session: StripeSessionView): boolean {
+  return session.status === "open";
+}
+
+export function stripeSessionIsPaid(session: StripeSessionView): boolean {
+  return session.paymentStatus === "paid" || session.status === "complete";
+}
+
+export async function expireStripeCheckoutSession(sessionId: string): Promise<void> {
+  if (!sessionId.startsWith("cs_")) return;
+  const session = await retrieveStripeCheckoutSession(sessionId);
+  if (!session || !stripeSessionIsOpen(session)) return;
+  try {
+    await getStripe().checkout.sessions.expire(sessionId);
+  } catch {
+    // Completing between retrieve and expire is fine — caller re-inspects.
+  }
+}
+
+export async function refundStripePayment(paymentId: string): Promise<void> {
+  if (!paymentId.startsWith("pi_") && !paymentId.startsWith("ch_")) return;
+  await getStripe().refunds.create(
+    paymentId.startsWith("pi_")
+      ? { payment_intent: paymentId }
+      : { charge: paymentId },
+  );
+}
+
 export function constructStripeEvent(rawBody: string, signature: string | null): Stripe.Event {
   const config = stripeConfig();
   if (!stripeWebhookReady(config) || !signature) {
@@ -109,7 +166,7 @@ export function parseStripeCheckoutSession(
       : session.payment_intent?.id ?? session.id;
   const meta = fromGatewayNotes(session.metadata);
   return {
-    providerEventId: event.id,
+    providerEventId: captureEventId(paymentId, event.id),
     paymentId,
     gatewayOrderId: session.id,
     amountPaise,

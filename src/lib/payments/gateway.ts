@@ -84,6 +84,19 @@ export function toGatewayNotes(meta: PaymentMeta): Record<string, string> {
   return notes;
 }
 
+export function mergeGatewayNotes(
+  ...sources: Array<Record<string, unknown> | null | undefined>
+): Record<string, string> {
+  const merged: Record<string, string> = {};
+  for (const source of sources) {
+    if (!source || typeof source !== "object") continue;
+    for (const [key, value] of Object.entries(source)) {
+      if (typeof value === "string" && value.length > 0) merged[key] = value;
+    }
+  }
+  return merged;
+}
+
 export function fromGatewayNotes(
   notes: Record<string, unknown> | null | undefined,
 ): PaymentMeta | null {
@@ -95,6 +108,27 @@ export function fromGatewayNotes(
   const bookingId = typeof notes.bid === "string" && notes.bid ? notes.bid : undefined;
   const planId = typeof notes.pid === "string" && notes.pid ? notes.pid : undefined;
   return { kind, userId, orderId, bookingId, planId };
+}
+
+export function gatewayKindFromId(
+  id: string | null | undefined,
+): CheckoutGateway | null {
+  if (!id) return null;
+  if (id.startsWith("cs_")) return "stripe";
+  if (id.startsWith("order_")) return "razorpay";
+  return null;
+}
+
+export function captureEventId(paymentId: string, fallback: string): string {
+  return paymentId ? `pay:${paymentId}` : fallback;
+}
+
+export function sameGatewayPaymentId(
+  stored: string | null | undefined,
+  incoming: string,
+): boolean {
+  if (!stored) return true;
+  return stored === incoming;
 }
 
 export function formatInvoiceNumber(year: number, seq: number): string {

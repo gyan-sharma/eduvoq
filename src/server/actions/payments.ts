@@ -10,6 +10,7 @@ import {
   startBookingPaymentSchema,
   startOrderPaymentSchema,
 } from "@/lib/validators/payments";
+import { isAlreadyPaidCheckout } from "@/lib/payments/types";
 import {
   confirmRazorpayClientPayment,
   startBookingCheckout,
@@ -49,6 +50,9 @@ function checkoutUser(user: { id: string; email: string; name: string | null }) 
 function finishCheckout(
   start: Awaited<ReturnType<typeof startOrderCheckout>>,
 ): PaymentActionState {
+  if (isAlreadyPaidCheckout(start)) {
+    redirect(`${start.returnPath}${start.returnPath.includes("?") ? "&" : "?"}paid=1`);
+  }
   if (start.gateway === "stripe") {
     redirect(start.redirectUrl);
   }

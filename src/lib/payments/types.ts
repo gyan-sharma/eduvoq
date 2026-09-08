@@ -20,6 +20,17 @@ export type CheckoutStart =
   | {
       gateway: "stripe";
       redirectUrl: string;
+    }
+  | {
+      alreadyPaid: true;
+      paymentId: string | null;
+      returnPath: string;
     };
+
+export function isAlreadyPaidCheckout(
+  start: CheckoutStart,
+): start is Extract<CheckoutStart, { alreadyPaid: true }> {
+  return "alreadyPaid" in start && start.alreadyPaid;
+}
 
 export type { CheckoutGateway };

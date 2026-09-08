@@ -5,10 +5,14 @@ import {
   DEFAULT_CHECKOUT_GATEWAY,
   INR_CURRENCY,
   PAYMENT_HOLD_MS,
+  captureEventId,
   formatInvoiceNumber,
   fromGatewayNotes,
+  gatewayKindFromId,
   inrPaise,
+  mergeGatewayNotes,
   parseCheckoutGateway,
+  sameGatewayPaymentId,
   toGatewayNotes,
 } from "@/lib/payments/gateway";
 import {
@@ -63,6 +67,29 @@ describe("gateway notes", () => {
       bookingId: undefined,
       planId: undefined,
     });
+  });
+
+  it("merges empty payment notes with order notes", () => {
+    const merged = mergeGatewayNotes(
+      { kind: PaymentKind.PLAN_PACK, uid: "user_1", pid: "plan_1" },
+      {},
+    );
+    expect(fromGatewayNotes(merged)).toEqual({
+      kind: PaymentKind.PLAN_PACK,
+      userId: "user_1",
+      orderId: undefined,
+      bookingId: undefined,
+      planId: "plan_1",
+    });
+  });
+
+  it("identifies gateway ids and same payment", () => {
+    expect(gatewayKindFromId("cs_abc")).toBe("stripe");
+    expect(gatewayKindFromId("order_abc")).toBe("razorpay");
+    expect(sameGatewayPaymentId(null, "pay_1")).toBe(true);
+    expect(sameGatewayPaymentId("pay_1", "pay_1")).toBe(true);
+    expect(sameGatewayPaymentId("pay_1", "pay_2")).toBe(false);
+    expect(captureEventId("pay_1", "evt_1")).toBe("pay:pay_1");
   });
 });
 
@@ -119,7 +146,7 @@ describe("Razorpay signatures and webhooks", () => {
       },
     });
     const capture = parseRazorpayWebhook(body, "evt_header_1");
-    expect(capture?.providerEventId).toBe("evt_header_1");
+    expect(capture?.providerEventId).toBe("pay:pay_1");
     expect(capture?.amountPaise).toBe(1000);
     expect(capture?.meta).toEqual({
       kind: PaymentKind.PLAN_PACK,
@@ -129,8 +156,45 @@ describe("Razorpay signatures and webhooks", () => {
       planId: "plan_1",
     });
     expect(parseRazorpayWebhook(body, "evt_header_1")?.providerEventId).toBe(
-      "evt_header_1",
+      "pay:pay_1",
     );
+  });
+
+  it("falls back to order notes when payment notes are empty", () => {
+    const body = JSON.stringify({
+      event: "payment.captured",
+      payload: {
+        payment: {
+          entity: {
+            id: "pay_2",
+            order_id: "order_2",
+            amount: 1000,
+            currency: "INR",
+            notes: {},
+          },
+        },
+        order: {
+          entity: {
+            id: "order_2",
+            amount: 1000,
+            currency: "INR",
+            notes: {
+              kind: PaymentKind.PLAN_PACK,
+              uid: "user_2",
+              pid: "plan_2",
+            },
+          },
+        },
+      },
+    });
+    const capture = parseRazorpayWebhook(body, null);
+    expect(capture?.meta).toEqual({
+      kind: PaymentKind.PLAN_PACK,
+      userId: "user_2",
+      orderId: undefined,
+      bookingId: undefined,
+      planId: "plan_2",
+    });
   });
 
   it("ignores unrelated Razorpay events", () => {
@@ -161,6 +225,7 @@ describe("Stripe checkout session parsing", () => {
     } as never);
     expect(paid?.amountPaise).toBe(1000);
     expect(paid?.currency).toBe("INR");
+    expect(paid?.providerEventId).toBe("pay:pi_1");
     expect(paid?.meta?.kind).toBe(PaymentKind.ORDER);
 
     expect(

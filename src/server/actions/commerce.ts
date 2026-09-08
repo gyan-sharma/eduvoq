@@ -26,6 +26,7 @@ import {
 } from "@/server/commerce";
 import { prisma } from "@/server/db";
 import { isFlagEnabled } from "@/server/flags";
+import { isAlreadyPaidCheckout } from "@/lib/payments/types";
 import { startOrderCheckout } from "@/server/payments";
 import { requireActiveUser } from "@/server/rbac";
 
@@ -383,6 +384,9 @@ export async function placeOrder(
   }
 
   revalidateCommerce();
+  if (checkout && isAlreadyPaidCheckout(checkout)) {
+    redirect(`${checkout.returnPath}?paid=1`);
+  }
   if (checkout?.gateway === "stripe") {
     redirect(checkout.redirectUrl);
   }

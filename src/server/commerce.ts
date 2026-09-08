@@ -22,6 +22,7 @@ import {
   isPlaceholderCatalogKey,
 } from "@/lib/types/commerce";
 import { prisma } from "@/server/db";
+import { allowReleaseExpiredPayment } from "@/server/payments";
 
 export class CommerceError extends Error {
   constructor(message: string) {
@@ -131,10 +132,11 @@ export async function releaseExpiredPendingOrders(
       status: OrderStatus.PENDING_PAYMENT,
       expiresAt: { lte: now },
     },
-    select: { id: true },
+    select: { id: true, razorpayOrderId: true },
   });
   let released = 0;
   for (const row of expired) {
+    if (!(await allowReleaseExpiredPayment(row.razorpayOrderId))) continue;
     const did = await cancelPendingOrderInTx(row.id);
     if (did) released += 1;
   }

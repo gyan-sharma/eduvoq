@@ -23,26 +23,39 @@ import {
   PaymentError,
   WEBINAR_PLAN_SLUG,
   addUtcMonths,
+  captureEventId,
   formatInvoiceNumber,
   fromGatewayNotes,
+  gatewayKindFromId,
   gatewayToProvider,
   invoiceYear,
   parseCheckoutGateway,
+  paymentHoldExpiresAt,
+  sameGatewayPaymentId,
   type CheckoutGateway,
   type PaymentMeta,
 } from "@/lib/payments/gateway";
 import {
+  cancelRazorpayOrder,
   createRazorpayOrder,
+  fetchRazorpayOrder,
   fetchRazorpayPayment,
   parseRazorpayWebhook,
+  razorpayOrderIsOpen,
+  refundRazorpayPayment,
   verifyRazorpayCheckoutSignature,
   verifyRazorpayWebhookSignature,
 } from "@/lib/payments/razorpay";
 import {
   constructStripeEvent,
   createStripeCheckoutSession,
+  expireStripeCheckoutSession,
   parseStripeCheckoutSession,
+  refundStripePayment,
+  retrieveStripeCheckoutSession,
   stripeCancelUrl,
+  stripeSessionIsOpen,
+  stripeSessionIsPaid,
   stripeSuccessUrl,
 } from "@/lib/payments/stripe";
 import type { CheckoutStart } from "@/lib/payments/types";
@@ -63,7 +76,9 @@ export type CaptureInput = {
   payload: Prisma.InputJsonValue;
 };
 
-export type IngestResult = "duplicate" | "fulfilled" | "ignored";
+export type IngestResult = "duplicate" | "fulfilled" | "ignored" | "conflict";
+
+type FulfillStatus = "fulfilled" | "retry" | "conflict";
 
 type CheckoutUser = {
   id: string;
@@ -108,6 +123,8 @@ async function persistGatewayIds(args: {
   kind: PaymentKind;
   orderId?: string;
   bookingId?: string;
+  planId?: string;
+  userId?: string;
   gatewayOrderId: string;
   paymentId?: string | null;
 }): Promise<void> {
@@ -126,6 +143,151 @@ async function persistGatewayIds(args: {
       data: { razorpayOrderId: args.gatewayOrderId },
     });
   }
+  if (args.kind === PaymentKind.PLAN_PACK && args.planId && args.userId) {
+    const pending = await prisma.subscription.findFirst({
+      where: {
+        userId: args.userId,
+        planId: args.planId,
+        status: SubscriptionStatus.CANCELED,
+        currentPeriodEnd: { gt: new Date() },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (pending) {
+      await prisma.subscription.update({
+        where: { id: pending.id },
+        data: {
+          razorpayOrderId: args.gatewayOrderId,
+          currentPeriodEnd: paymentHoldExpiresAt(),
+        },
+      });
+      return;
+    }
+    await prisma.subscription.create({
+      data: {
+        userId: args.userId,
+        planId: args.planId,
+        status: SubscriptionStatus.CANCELED,
+        razorpayOrderId: args.gatewayOrderId,
+        currentPeriodEnd: paymentHoldExpiresAt(),
+      },
+    });
+  }
+}
+
+async function razorpayCheckoutFromOrder(args: {
+  orderId: string;
+  amountPaise: number;
+  description: string;
+  user: CheckoutUser;
+  successPath: string;
+}): Promise<CheckoutStart> {
+  const config = razorpayConfig();
+  return {
+    gateway: "razorpay",
+    razorpay: {
+      keyId: config.keyId,
+      orderId: args.orderId,
+      amountPaise: args.amountPaise,
+      currency: INR_CURRENCY,
+      name: "EduVoq",
+      description: args.description,
+      prefillName: args.user.name ?? undefined,
+      prefillEmail: args.user.email,
+      successPath: args.successPath,
+    },
+  };
+}
+
+async function reuseOpenGateway(args: {
+  gateway: CheckoutGateway;
+  existingId: string | null;
+  amountPaise: number;
+  description: string;
+  user: CheckoutUser;
+  successPath: string;
+}): Promise<CheckoutStart | null> {
+  if (!args.existingId) return null;
+  if (gatewayKindFromId(args.existingId) !== args.gateway) return null;
+  try {
+    if (args.gateway === "razorpay") {
+      const order = await fetchRazorpayOrder(args.existingId);
+      if (order.status === "paid") {
+        return {
+          alreadyPaid: true,
+          paymentId: args.existingId,
+          returnPath: args.successPath,
+        };
+      }
+      if (razorpayOrderIsOpen(order.status)) {
+        return razorpayCheckoutFromOrder({
+          orderId: order.id,
+          amountPaise: args.amountPaise,
+          description: args.description,
+          user: args.user,
+          successPath: args.successPath,
+        });
+      }
+      return null;
+    }
+    const session = await retrieveStripeCheckoutSession(args.existingId);
+    if (!session) return null;
+    if (stripeSessionIsPaid(session)) {
+      return {
+        alreadyPaid: true,
+        paymentId: session.paymentIntentId,
+        returnPath: args.successPath,
+      };
+    }
+    if (stripeSessionIsOpen(session) && session.url) {
+      return { gateway: "stripe", redirectUrl: session.url };
+    }
+  } catch (error) {
+    logger.warn({ err: error, gatewayId: args.existingId }, "reuse gateway session failed");
+  }
+  return null;
+}
+
+async function retireGatewaySession(existingId: string | null): Promise<void> {
+  if (!existingId) return;
+  try {
+    const kind = gatewayKindFromId(existingId);
+    if (kind === "razorpay") await cancelRazorpayOrder(existingId);
+    if (kind === "stripe") await expireStripeCheckoutSession(existingId);
+  } catch (error) {
+    logger.warn({ err: error, gatewayId: existingId }, "retire gateway session failed");
+  }
+}
+
+export async function allowReleaseExpiredPayment(
+  gatewayOrderId: string | null,
+): Promise<boolean> {
+  if (!gatewayOrderId) return true;
+  const kind = gatewayKindFromId(gatewayOrderId);
+  try {
+    if (kind === "stripe") {
+      const session = await retrieveStripeCheckoutSession(gatewayOrderId);
+      if (session && stripeSessionIsPaid(session)) return false;
+      if (session && stripeSessionIsOpen(session)) {
+        await expireStripeCheckoutSession(gatewayOrderId);
+        const again = await retrieveStripeCheckoutSession(gatewayOrderId);
+        if (again && stripeSessionIsPaid(again)) return false;
+      }
+      return true;
+    }
+    if (kind === "razorpay") {
+      const order = await fetchRazorpayOrder(gatewayOrderId);
+      if (order.status === "paid") return false;
+      if (razorpayOrderIsOpen(order.status)) {
+        await cancelRazorpayOrder(gatewayOrderId);
+      }
+      return true;
+    }
+  } catch (error) {
+    logger.warn({ err: error, gatewayOrderId }, "gateway inspect before release failed");
+    return false;
+  }
+  return true;
 }
 
 async function startGatewayCheckout(args: {
@@ -137,9 +299,20 @@ async function startGatewayCheckout(args: {
   successPath: string;
   cancelPath: string;
   user: CheckoutUser;
+  existingGatewayId?: string | null;
 }): Promise<CheckoutStart> {
   requireGateway(args.gateway);
-  const moneyCurrency = INR_CURRENCY;
+  const reused = await reuseOpenGateway({
+    gateway: args.gateway,
+    existingId: args.existingGatewayId ?? null,
+    amountPaise: args.amountPaise,
+    description: args.description,
+    user: args.user,
+    successPath: args.successPath,
+  });
+  if (reused) return reused;
+
+  await retireGatewaySession(args.existingGatewayId ?? null);
 
   if (args.gateway === "stripe") {
     const session = await createStripeCheckoutSession({
@@ -154,6 +327,8 @@ async function startGatewayCheckout(args: {
       kind: args.meta.kind,
       orderId: args.meta.orderId,
       bookingId: args.meta.bookingId,
+      planId: args.meta.planId,
+      userId: args.meta.userId,
       gatewayOrderId: session.id,
       paymentId: session.paymentIntentId,
     });
@@ -169,23 +344,17 @@ async function startGatewayCheckout(args: {
     kind: args.meta.kind,
     orderId: args.meta.orderId,
     bookingId: args.meta.bookingId,
+    planId: args.meta.planId,
+    userId: args.meta.userId,
     gatewayOrderId: order.id,
   });
-  const config = razorpayConfig();
-  return {
-    gateway: "razorpay",
-    razorpay: {
-      keyId: config.keyId,
-      orderId: order.id,
-      amountPaise: args.amountPaise,
-      currency: moneyCurrency,
-      name: "EduVoq",
-      description: args.description,
-      prefillName: args.user.name ?? undefined,
-      prefillEmail: args.user.email,
-      successPath: args.successPath,
-    },
-  };
+  return razorpayCheckoutFromOrder({
+    orderId: order.id,
+    amountPaise: args.amountPaise,
+    description: args.description,
+    user: args.user,
+    successPath: args.successPath,
+  });
 }
 
 export async function startOrderCheckout(args: {
@@ -198,6 +367,19 @@ export async function startOrderCheckout(args: {
     include: { items: { include: { product: { select: { name: true } } } } },
   });
   if (!order) throw new PaymentError("Order not found.");
+  const returnPath = `/account/orders/${order.id}`;
+  if (
+    order.status === OrderStatus.PAID ||
+    order.status === OrderStatus.FULFILLING ||
+    order.status === OrderStatus.SHIPPED ||
+    order.status === OrderStatus.DELIVERED
+  ) {
+    return {
+      alreadyPaid: true,
+      paymentId: order.razorpayPaymentId,
+      returnPath,
+    };
+  }
   if (order.status !== OrderStatus.PENDING_PAYMENT) {
     throw new PaymentError("This order is not awaiting payment.");
   }
@@ -213,9 +395,10 @@ export async function startOrderCheckout(args: {
     amountPaise: order.totalPaise,
     description,
     receipt: receiptFor("o", order.id),
-    successPath: `/account/orders/${order.id}`,
-    cancelPath: `/account/orders/${order.id}`,
+    successPath: returnPath,
+    cancelPath: returnPath,
     user: args.user,
+    existingGatewayId: order.razorpayOrderId,
     meta: {
       kind: PaymentKind.ORDER,
       userId: args.user.id,
@@ -234,6 +417,13 @@ export async function startBookingCheckout(args: {
     include: { service: { select: { title: true, pricePaise: true } } },
   });
   if (!booking) throw new PaymentError("Booking not found.");
+  if (booking.status === BookingStatus.CONFIRMED) {
+    return {
+      alreadyPaid: true,
+      paymentId: booking.razorpayOrderId,
+      returnPath: "/account/bookings",
+    };
+  }
   if (booking.status !== BookingStatus.PENDING_PAYMENT) {
     throw new PaymentError("This booking is not awaiting payment.");
   }
@@ -251,6 +441,7 @@ export async function startBookingCheckout(args: {
     successPath: `/account/bookings`,
     cancelPath: `/account/bookings`,
     user: args.user,
+    existingGatewayId: booking.razorpayOrderId,
     meta: {
       kind: PaymentKind.BOOKING,
       userId: args.user.id,
@@ -277,11 +468,25 @@ export async function startPlanPackCheckout(args: {
       status: SubscriptionStatus.ACTIVE,
       currentPeriodEnd: { gt: new Date() },
     },
-    select: { id: true },
+    select: { id: true, razorpayOrderId: true },
   });
   if (active) {
-    throw new PaymentError("You already have an active webinar pack.");
+    return {
+      alreadyPaid: true,
+      paymentId: active.razorpayOrderId,
+      returnPath: "/account/subscriptions",
+    };
   }
+  const pending = await prisma.subscription.findFirst({
+    where: {
+      userId: args.user.id,
+      planId: plan.id,
+      status: SubscriptionStatus.CANCELED,
+      currentPeriodEnd: { gt: new Date() },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { razorpayOrderId: true },
+  });
   return startGatewayCheckout({
     gateway: args.gateway,
     amountPaise: plan.pricePaise,
@@ -290,6 +495,7 @@ export async function startPlanPackCheckout(args: {
     successPath: "/account/subscriptions",
     cancelPath: "/pricing",
     user: args.user,
+    existingGatewayId: pending?.razorpayOrderId ?? null,
     meta: {
       kind: PaymentKind.PLAN_PACK,
       userId: args.user.id,
@@ -325,23 +531,25 @@ async function restoreStockIfNeeded(
   return true;
 }
 
-async function fulfillOrder(capture: CaptureInput): Promise<boolean> {
-  if (!capture.orderId) return false;
+async function fulfillOrder(capture: CaptureInput): Promise<FulfillStatus> {
+  if (!capture.orderId) return "retry";
   return prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
       where: { id: capture.orderId! },
       include: { items: { include: { product: { select: { type: true } } } } },
     });
-    if (!order) return false;
+    if (!order) return "retry";
     if (
       order.status === OrderStatus.PAID ||
       order.status === OrderStatus.FULFILLING ||
       order.status === OrderStatus.SHIPPED ||
       order.status === OrderStatus.DELIVERED
     ) {
-      return true;
+      return sameGatewayPaymentId(order.razorpayPaymentId, capture.paymentId)
+        ? "fulfilled"
+        : "conflict";
     }
-    if (order.status === OrderStatus.REFUNDED) return false;
+    if (order.status === OrderStatus.REFUNDED) return "conflict";
     if (order.totalPaise !== capture.amountPaise) {
       throw new PaymentError("Paid amount does not match the order total.");
     }
@@ -357,10 +565,10 @@ async function fulfillOrder(capture: CaptureInput): Promise<boolean> {
           { orderId: order.id, providerEventId: capture.providerEventId },
           "paid cancelled order cannot be revived; stock missing",
         );
-        return false;
+        return "conflict";
       }
     } else if (order.status !== OrderStatus.PENDING_PAYMENT) {
-      return false;
+      return "retry";
     }
 
     const hasPhysical = order.items.some(
@@ -388,12 +596,12 @@ async function fulfillOrder(capture: CaptureInput): Promise<boolean> {
         href: `/account/orders/${order.id}`,
       },
     });
-    return true;
+    return "fulfilled";
   });
 }
 
-async function fulfillBooking(capture: CaptureInput): Promise<boolean> {
-  if (!capture.bookingId) return false;
+async function fulfillBooking(capture: CaptureInput): Promise<FulfillStatus> {
+  if (!capture.bookingId) return "retry";
   const booking = await prisma.booking.findUnique({
     where: { id: capture.bookingId },
     include: {
@@ -402,9 +610,18 @@ async function fulfillBooking(capture: CaptureInput): Promise<boolean> {
       expert: { select: { name: true } },
     },
   });
-  if (!booking) return false;
-  if (booking.status === BookingStatus.CONFIRMED) return true;
-  if (booking.status !== BookingStatus.PENDING_PAYMENT) return false;
+  if (!booking) return "conflict";
+  if (booking.status === BookingStatus.CONFIRMED) {
+    return sameGatewayPaymentId(booking.razorpayOrderId, capture.gatewayOrderId)
+      ? "fulfilled"
+      : "conflict";
+  }
+  if (
+    booking.status !== BookingStatus.PENDING_PAYMENT &&
+    booking.status !== BookingStatus.CANCELLED
+  ) {
+    return "retry";
+  }
   if (booking.service.pricePaise !== capture.amountPaise) {
     throw new PaymentError("Paid amount does not match the booking total.");
   }
@@ -412,7 +629,10 @@ async function fulfillBooking(capture: CaptureInput): Promise<boolean> {
     throw new PaymentError("Paid currency must be INR.");
   }
   const updated = await prisma.booking.updateMany({
-    where: { id: capture.bookingId, status: BookingStatus.PENDING_PAYMENT },
+    where: {
+      id: capture.bookingId,
+      status: { in: [BookingStatus.PENDING_PAYMENT, BookingStatus.CANCELLED] },
+    },
     data: {
       status: BookingStatus.CONFIRMED,
       razorpayOrderId: capture.gatewayOrderId,
@@ -421,9 +641,14 @@ async function fulfillBooking(capture: CaptureInput): Promise<boolean> {
   if (updated.count !== 1) {
     const existing = await prisma.booking.findUnique({
       where: { id: capture.bookingId },
-      select: { status: true },
+      select: { status: true, razorpayOrderId: true },
     });
-    return existing?.status === BookingStatus.CONFIRMED;
+    if (existing?.status === BookingStatus.CONFIRMED) {
+      return sameGatewayPaymentId(existing.razorpayOrderId, capture.gatewayOrderId)
+        ? "fulfilled"
+        : "conflict";
+    }
+    return "retry";
   }
   await prisma.notification.create({
     data: {
@@ -443,39 +668,66 @@ async function fulfillBooking(capture: CaptureInput): Promise<boolean> {
       expertName: booking.expert.name,
     });
   }
-  return true;
+  return "fulfilled";
 }
 
-async function fulfillPlanPack(capture: CaptureInput): Promise<boolean> {
+async function fulfillPlanPack(capture: CaptureInput): Promise<FulfillStatus> {
   const planId = capture.planId;
   const userId = capture.userId;
-  if (!planId || !userId) return false;
+  if (!planId || !userId) return "retry";
   const plan = await prisma.plan.findUnique({ where: { id: planId } });
-  if (!plan) return false;
+  if (!plan) return "retry";
   if (plan.pricePaise !== capture.amountPaise) {
     throw new PaymentError("Paid amount does not match the pack price.");
   }
-  const existing = await prisma.subscription.findFirst({
+  if (capture.currency.toUpperCase() !== INR_CURRENCY) {
+    throw new PaymentError("Paid currency must be INR.");
+  }
+  const active = await prisma.subscription.findFirst({
+    where: {
+      userId,
+      planId,
+      status: SubscriptionStatus.ACTIVE,
+      currentPeriodEnd: { gt: new Date() },
+    },
+  });
+  if (active) {
+    return sameGatewayPaymentId(active.razorpayOrderId, capture.gatewayOrderId)
+      ? "fulfilled"
+      : "conflict";
+  }
+  const periodEnd = addUtcMonths(new Date(), plan.durationMonths);
+  const pending = await prisma.subscription.findFirst({
     where: {
       userId,
       planId,
       razorpayOrderId: capture.gatewayOrderId,
     },
+    orderBy: { createdAt: "desc" },
   });
-  if (existing) return true;
-  const periodEnd = addUtcMonths(new Date(), plan.durationMonths);
-  try {
-    await prisma.subscription.create({
+  if (pending) {
+    await prisma.subscription.update({
+      where: { id: pending.id },
       data: {
-        userId,
-        planId,
         status: SubscriptionStatus.ACTIVE,
         currentPeriodEnd: periodEnd,
         razorpayOrderId: capture.gatewayOrderId,
       },
     });
-  } catch (error) {
-    if (!isUniqueConstraintError(error)) throw error;
+  } else {
+    try {
+      await prisma.subscription.create({
+        data: {
+          userId,
+          planId,
+          status: SubscriptionStatus.ACTIVE,
+          currentPeriodEnd: periodEnd,
+          razorpayOrderId: capture.gatewayOrderId,
+        },
+      });
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error;
+    }
   }
   await prisma.notification.create({
     data: {
@@ -486,10 +738,30 @@ async function fulfillPlanPack(capture: CaptureInput): Promise<boolean> {
       href: "/account/subscriptions",
     },
   });
-  return true;
+  return "fulfilled";
 }
 
-export async function ingestCapture(capture: CaptureInput): Promise<IngestResult> {
+async function refundConflictingCapture(capture: CaptureInput): Promise<void> {
+  try {
+    if (capture.provider === PaymentProvider.STRIPE) {
+      await refundStripePayment(capture.paymentId);
+    } else if (capture.provider === PaymentProvider.RAZORPAY) {
+      await refundRazorpayPayment(capture.paymentId);
+    }
+  } catch (error) {
+    logger.error(
+      {
+        err: error,
+        provider: capture.provider,
+        paymentId: capture.paymentId,
+        providerEventId: capture.providerEventId,
+      },
+      "double-charge refund failed",
+    );
+  }
+}
+
+async function recordPaymentEvent(capture: CaptureInput): Promise<"ok" | "duplicate"> {
   try {
     await prisma.paymentEvent.create({
       data: {
@@ -501,38 +773,48 @@ export async function ingestCapture(capture: CaptureInput): Promise<IngestResult
         payload: capture.payload,
       },
     });
+    return "ok";
   } catch (error) {
     if (isUniqueConstraintError(error)) return "duplicate";
     throw error;
   }
+}
 
-  try {
-    let ok = false;
-    if (capture.kind === PaymentKind.ORDER) ok = await fulfillOrder(capture);
-    else if (capture.kind === PaymentKind.BOOKING) ok = await fulfillBooking(capture);
-    else if (capture.kind === PaymentKind.PLAN_PACK) ok = await fulfillPlanPack(capture);
+export async function ingestCapture(capture: CaptureInput): Promise<IngestResult> {
+  let status: FulfillStatus = "retry";
+  if (capture.kind === PaymentKind.ORDER) status = await fulfillOrder(capture);
+  else if (capture.kind === PaymentKind.BOOKING) status = await fulfillBooking(capture);
+  else if (capture.kind === PaymentKind.PLAN_PACK) status = await fulfillPlanPack(capture);
 
-    if (!ok) {
-      logger.warn(
-        {
-          provider: capture.provider,
-          providerEventId: capture.providerEventId,
-          kind: capture.kind,
-        },
-        "payment event stored but not fulfilled",
-      );
-      return "ignored";
-    }
-    return "fulfilled";
-  } catch (error) {
-    await prisma.paymentEvent.deleteMany({
-      where: {
+  if (status === "retry") {
+    logger.warn(
+      {
         provider: capture.provider,
         providerEventId: capture.providerEventId,
+        kind: capture.kind,
       },
-    });
-    throw error;
+      "payment capture not fulfilled; leaving PaymentEvent unset for retry",
+    );
+    return "ignored";
   }
+
+  const recorded = await recordPaymentEvent(capture);
+  if (recorded === "duplicate" && status === "fulfilled") return "duplicate";
+
+  if (status === "conflict") {
+    logger.error(
+      {
+        provider: capture.provider,
+        providerEventId: capture.providerEventId,
+        paymentId: capture.paymentId,
+        kind: capture.kind,
+      },
+      "capture conflicts with an already-paid row",
+    );
+    await refundConflictingCapture(capture);
+    return "conflict";
+  }
+  return "fulfilled";
 }
 
 async function resolveMeta(
@@ -558,7 +840,27 @@ async function resolveMeta(
       bookingId: booking.id,
     };
   }
+  const pack = await prisma.subscription.findFirst({
+    where: { razorpayOrderId: gatewayOrderId },
+    select: { userId: true, planId: true },
+  });
+  if (pack) {
+    return {
+      kind: PaymentKind.PLAN_PACK,
+      userId: pack.userId,
+      planId: pack.planId,
+    };
+  }
   return null;
+}
+
+function webhookIngestResponse(
+  result: IngestResult,
+): { ok: true; result: IngestResult } | { ok: false; error: string; status: number } {
+  if (result === "ignored") {
+    return { ok: false, error: "Capture not fulfilled.", status: 500 };
+  }
+  return { ok: true, result };
 }
 
 export async function ingestRazorpayWebhook(args: {
@@ -574,7 +876,7 @@ export async function ingestRazorpayWebhook(args: {
   const meta = await resolveMeta(capture.meta, capture.gatewayOrderId);
   if (!meta) {
     logger.warn({ gatewayOrderId: capture.gatewayOrderId }, "razorpay webhook missing meta");
-    return { ok: true, result: "ignored" };
+    return { ok: false, error: "Unknown payment.", status: 500 };
   }
   const result = await ingestCapture({
     provider: PaymentProvider.RAZORPAY,
@@ -590,7 +892,7 @@ export async function ingestRazorpayWebhook(args: {
     currency: capture.currency,
     payload: JSON.parse(JSON.stringify(capture.payload)) as Prisma.InputJsonValue,
   });
-  return { ok: true, result };
+  return webhookIngestResponse(result);
 }
 
 export async function ingestStripeWebhook(args: {
@@ -609,7 +911,7 @@ export async function ingestStripeWebhook(args: {
   const meta = await resolveMeta(capture.meta, capture.gatewayOrderId);
   if (!meta) {
     logger.warn({ gatewayOrderId: capture.gatewayOrderId }, "stripe webhook missing meta");
-    return { ok: true, result: "ignored" };
+    return { ok: false, error: "Unknown payment.", status: 500 };
   }
   const result = await ingestCapture({
     provider: PaymentProvider.STRIPE,
@@ -625,7 +927,7 @@ export async function ingestStripeWebhook(args: {
     currency: capture.currency,
     payload: JSON.parse(JSON.stringify(capture.payload)) as Prisma.InputJsonValue,
   });
-  return { ok: true, result };
+  return webhookIngestResponse(result);
 }
 
 export async function confirmRazorpayClientPayment(args: {
@@ -653,7 +955,7 @@ export async function confirmRazorpayClientPayment(args: {
   if (!meta) throw new PaymentError("Unknown Razorpay order.");
   return ingestCapture({
     provider: PaymentProvider.RAZORPAY,
-    providerEventId: `checkout:${payment.id}`,
+    providerEventId: captureEventId(payment.id, `checkout:${payment.id}`),
     kind: meta.kind,
     userId: meta.userId,
     orderId: meta.orderId,

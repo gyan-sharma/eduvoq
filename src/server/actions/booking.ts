@@ -28,6 +28,7 @@ import {
 } from "@/server/booking-assign";
 import { prisma } from "@/server/db";
 import { isFlagEnabled } from "@/server/flags";
+import { isAlreadyPaidCheckout } from "@/lib/payments/types";
 import { startBookingCheckout } from "@/server/payments";
 import { requireBooker, requireSession } from "@/server/rbac";
 
@@ -248,6 +249,9 @@ export async function createBooking(
         failed?.error ??
         "Booking held for 15 minutes. Complete payment from My bookings.",
     };
+  }
+  if (isAlreadyPaidCheckout(start)) {
+    redirect(`${start.returnPath}?paid=1`);
   }
   if (start.gateway === "stripe") {
     redirect(start.redirectUrl);

@@ -3,9 +3,12 @@ import { razorpayConfig, razorpayCheckoutReady } from "@/lib/payments/config";
 import { hmacSha256Hex, safeEqualHex } from "@/lib/payments/crypto";
 import {
   INR_CURRENCY,
+  PAYMENT_HOLD_MS,
   PaymentError,
+  captureEventId,
   fromGatewayNotes,
   inrPaise,
+  mergeGatewayNotes,
   toGatewayNotes,
   type PaymentMeta,
 } from "@/lib/payments/gateway";
@@ -107,6 +110,7 @@ export async function createRazorpayOrder(args: {
       currency: money.currency,
       receipt: args.receipt.slice(0, 40),
       payment_capture: 1,
+      expire_by: Math.floor(Date.now() / 1000) + Math.floor(PAYMENT_HOLD_MS / 1000),
       notes: toGatewayNotes(args.meta),
     }),
   });
@@ -122,6 +126,66 @@ export async function createRazorpayOrder(args: {
     status: json.status,
     notes: asStringNotes(json.notes),
   };
+}
+
+function parseRazorpayOrder(json: RazorpayOrder & { error?: { description?: string } }): RazorpayOrder {
+  return {
+    id: json.id,
+    amount: Number(json.amount),
+    currency: json.currency || INR_CURRENCY,
+    receipt: json.receipt ?? null,
+    status: json.status,
+    notes: asStringNotes(json.notes),
+  };
+}
+
+export async function fetchRazorpayOrder(orderId: string): Promise<RazorpayOrder> {
+  const config = razorpayConfig();
+  if (!razorpayCheckoutReady(config)) {
+    throw new PaymentError("India payments (Razorpay) are not configured.");
+  }
+  const response = await fetch(`${RAZORPAY_API}/orders/${encodeURIComponent(orderId)}`, {
+    headers: { Authorization: authHeader(config.keyId, config.keySecret) },
+  });
+  const json = (await response.json()) as RazorpayOrder & { error?: { description?: string } };
+  if (!response.ok || !json.id) {
+    throw new PaymentError(json.error?.description ?? "Unable to load Razorpay order.");
+  }
+  return parseRazorpayOrder(json);
+}
+
+export function razorpayOrderIsOpen(status: string): boolean {
+  return status === "created" || status === "attempted";
+}
+
+export async function cancelRazorpayOrder(orderId: string): Promise<void> {
+  const config = razorpayConfig();
+  if (!razorpayCheckoutReady(config) || !orderId.startsWith("order_")) return;
+  const response = await fetch(`${RAZORPAY_API}/orders/${encodeURIComponent(orderId)}/cancel`, {
+    method: "POST",
+    headers: { Authorization: authHeader(config.keyId, config.keySecret) },
+  });
+  if (!response.ok && response.status !== 400) {
+    const json = (await response.json().catch(() => null)) as { error?: { description?: string } } | null;
+    throw new PaymentError(json?.error?.description ?? "Unable to cancel Razorpay order.");
+  }
+}
+
+export async function refundRazorpayPayment(paymentId: string): Promise<void> {
+  const config = razorpayConfig();
+  if (!razorpayCheckoutReady(config) || !paymentId.startsWith("pay_")) return;
+  const response = await fetch(`${RAZORPAY_API}/payments/${encodeURIComponent(paymentId)}/refund`, {
+    method: "POST",
+    headers: {
+      Authorization: authHeader(config.keyId, config.keySecret),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({}),
+  });
+  if (!response.ok && response.status !== 400) {
+    const json = (await response.json().catch(() => null)) as { error?: { description?: string } } | null;
+    throw new PaymentError(json?.error?.description ?? "Unable to refund Razorpay payment.");
+  }
 }
 
 export async function fetchRazorpayPayment(paymentId: string): Promise<RazorpayPayment> {
@@ -169,13 +233,14 @@ export function parseRazorpayWebhook(
     "";
   const amountPaise = Number(payment?.amount ?? order?.amount ?? 0);
   const currency = String(payment?.currency ?? order?.currency ?? INR_CURRENCY);
-  const notes = asStringNotes(payment?.notes ?? order?.notes);
+  const notes = mergeGatewayNotes(order?.notes, payment?.notes);
   if (!gatewayOrderId || !Number.isInteger(amountPaise) || amountPaise < 1) {
     return null;
   }
-  const providerEventId =
+  const fallback =
     eventIdHeader?.trim() ||
     (paymentId ? `${eventName}:${paymentId}` : `${eventName}:${gatewayOrderId}`);
+  const providerEventId = captureEventId(paymentId, fallback);
   return {
     providerEventId,
     paymentId: paymentId || gatewayOrderId,

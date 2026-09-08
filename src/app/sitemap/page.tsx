@@ -28,6 +28,8 @@ const blogLinks = [
   { href: "/rss.xml", label: "RSS feed" },
 ];
 
+const eventLinks = [{ href: "/events", label: "Events" }];
+
 const legalLinks = [
   { href: "/privacy", label: "Privacy Policy" },
   { href: "/terms", label: "Terms and Conditions" },
@@ -73,6 +75,10 @@ export default function SitemapPage() {
         <section>
           <h2 className="font-heading text-lg font-semibold">Blog</h2>
           <LinkList items={blogLinks} />
+        </section>
+        <section>
+          <h2 className="font-heading text-lg font-semibold">Events</h2>
+          <LinkList items={eventLinks} />
         </section>
         <section>
           <h2 className="font-heading text-lg font-semibold">Legal</h2>

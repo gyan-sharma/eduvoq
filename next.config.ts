@@ -61,6 +61,16 @@ const nextConfig: NextConfig = {
         destination: "/account/addresses",
         permanent: true,
       },
+      {
+        source: "/event-list",
+        destination: "/events",
+        permanent: true,
+      },
+      {
+        source: "/event-details/:slug",
+        destination: "/events/:slug",
+        permanent: true,
+      },
     ];
   },
 };

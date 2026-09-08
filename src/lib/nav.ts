@@ -117,6 +117,7 @@ export const footerColumns: NavGroup[] = [
     heading: "Learn",
     items: [
       { href: "/consult", label: "Consulting Services" },
+      { href: "/events", label: "Events" },
       { href: "/resources/learning-material", label: "Learning Material" },
       { href: "/privacy", label: "Privacy Policy" },
       { href: "/terms", label: "Terms & Conditions" },

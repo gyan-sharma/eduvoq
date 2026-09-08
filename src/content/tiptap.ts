@@ -62,6 +62,27 @@ function isNode(value: unknown): value is TipTapNode {
   return typeof value === "object" && value !== null && "type" in value;
 }
 
+export const emptyDoc: TipTapNode = {
+  type: "doc",
+  content: [{ type: "paragraph" }],
+};
+
+export function parseTipTapDoc(value: unknown): TipTapNode | null {
+  let current: unknown = value;
+  if (typeof current === "string") {
+    const trimmed = current.trim();
+    if (!trimmed) return null;
+    if (!trimmed.startsWith("{")) return null;
+    try {
+      current = JSON.parse(trimmed) as unknown;
+    } catch {
+      return null;
+    }
+  }
+  if (!isNode(current) || current.type !== "doc") return null;
+  return current;
+}
+
 export function textFromTipTap(value: unknown): string {
   if (typeof value === "string") {
     return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();

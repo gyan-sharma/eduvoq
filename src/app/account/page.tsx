@@ -59,6 +59,11 @@ export default async function AccountPage() {
         <Link href="/account/settings" className={`${secondaryButtonClass} w-auto`}>
           Account settings
         </Link>
+        {user.role === Role.STAFF || user.role === Role.ADMIN ? (
+          <Link href="/admin" className={`${secondaryButtonClass} w-auto`}>
+            Admin
+          </Link>
+        ) : null}
         <form action={signOutAction}>
           <button type="submit" className={`${secondaryButtonClass} w-auto`}>
             Sign out

@@ -334,6 +334,9 @@ async function main() {
       await prisma.postTag.createMany({ data: postTags });
     }
   }
+
+  // Do not seed Wix event boilerplate (annual-science-fair / spring-is-here-field-trip).
+  // Staff create events in /admin/events with original copy.
 }
 
 main()

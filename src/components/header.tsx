@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { Role } from "@prisma/client";
 import { auth } from "@/auth";
 
 export async function Header() {
   const session = await auth();
   const signedIn = Boolean(session?.user);
+  const staff =
+    session?.user?.role === Role.STAFF || session?.user?.role === Role.ADMIN;
 
   return (
     <header className="border-b border-stone-200 bg-white">
@@ -17,6 +20,9 @@ export async function Header() {
         <nav className="flex flex-wrap items-center gap-4 text-sm text-stone-700">
           <Link href="/store" className="hover:text-emerald-800">
             Store
+          </Link>
+          <Link href="/events" className="hover:text-emerald-800">
+            Events
           </Link>
           <Link href="/sample-papers" className="hover:text-emerald-800">
             Sample papers
@@ -32,6 +38,11 @@ export async function Header() {
               <Link href="/account" className="hover:text-emerald-800">
                 Account
               </Link>
+              {staff ? (
+                <Link href="/admin" className="hover:text-emerald-800">
+                  Admin
+                </Link>
+              ) : null}
             </>
           ) : (
             <>

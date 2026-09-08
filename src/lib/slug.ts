@@ -8,3 +8,14 @@ export function slugify(value: string, max = 60): string {
     .slice(0, max);
   return slug || "item";
 }
+
+export const RESERVED_POST_SLUGS = new Set([
+  "submit",
+  "categories",
+  "tags",
+  "feed",
+]);
+
+export function uniqueCandidate(base: string, n: number): string {
+  return n <= 1 ? base : `${base}-${n}`;
+}

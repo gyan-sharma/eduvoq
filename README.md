@@ -70,6 +70,12 @@ Educator/expert uploads land in `Resource.status=IN_REVIEW`. Staff/admin uploads
 
 Physical self-ship (`commerce_physical=true`): India only, prepaid, no COD. Metro ₹79 / rest of India ₹129. `placeOrder` decrements stock in a transaction and leaves the order `PENDING_PAYMENT` until payments (PR 15). Placeholder `i-m-a-product-*` SKUs are not sold.
 
+## Admin and events
+
+`/admin` requires an active `STAFF` or `ADMIN` session (proxy + `requireRole`). Surfaces: users (ban; admin-only grant EXPERT), TipTap CMS pages, posts IN_REVIEW → PUBLISHED, reports queue, bookings, orders (PAID → FULFILLING → SHIPPED → DELIVERED), resource publish, feature flags (admin-only mutate), audit log, events.
+
+Public `/events` and `/events/[slug]` list published events. Wix science-fair / field-trip boilerplate is not seeded. Free events can be registered when `events_registration` is on; paid checkout waits for payments.
+
 ## Scripts
 
 | Command | Description |

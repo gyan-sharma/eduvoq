@@ -41,6 +41,19 @@ export async function getCmsPage(slug: string): Promise<CmsPageView | null> {
   return fallback ? fromSeed(fallback) : null;
 }
 
+export async function listCmsPagesForAdmin() {
+  return prisma.cmsPage.findMany({
+    orderBy: { slug: "asc" },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      published: true,
+      updatedAt: true,
+    },
+  });
+}
+
 export function cmsPageMetadata(slug: string) {
   return async function generateMetadata(): Promise<Metadata> {
     const page = await getCmsPage(slug);

@@ -13,6 +13,7 @@ export const sitemapStaticPaths = [
   "/services",
   "/blog",
   "/blog/submit",
+  "/events",
 ] as const;
 
 export function marketingSitemapPaths(): string[] {

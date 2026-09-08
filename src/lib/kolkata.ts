@@ -102,3 +102,33 @@ export function kolkataDateKey(date: Date): string {
   const dd = String(p.day).padStart(2, "0");
   return `${p.year}-${mm}-${dd}`;
 }
+
+export function parseKolkataDateTimeLocal(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31 ||
+    hour > 23 ||
+    minute > 59
+  ) {
+    return null;
+  }
+  return fromKolkata(year, month, day, hour * 60 + minute);
+}
+
+export function toKolkataDateTimeLocal(date: Date): string {
+  const p = toKolkataParts(date);
+  const mm = String(p.month).padStart(2, "0");
+  const dd = String(p.day).padStart(2, "0");
+  const hh = String(p.hour).padStart(2, "0");
+  const min = String(p.minute).padStart(2, "0");
+  return `${p.year}-${mm}-${dd}T${hh}:${min}`;
+}

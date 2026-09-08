@@ -4,6 +4,7 @@ import { toIsoDate } from "@/lib/dates";
 import { marketingSitemapPaths } from "@/lib/public-paths";
 import { renderUrlSet, type SitemapUrl } from "@/lib/seo-xml";
 import { absoluteUrl } from "@/lib/site";
+import { listPublishedEvents } from "@/server/events";
 import {
   listPublishedPosts,
   listPublicTaxonomy,
@@ -13,9 +14,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const [posts, taxonomy] = await Promise.all([
+  const [posts, taxonomy, events] = await Promise.all([
     listPublishedPosts(),
     listPublicTaxonomy(),
+    listPublishedEvents(),
   ]);
 
   const urls: SitemapUrl[] = [
@@ -39,6 +41,12 @@ export async function GET() {
       lastmod: toIsoDate(post.updatedAt ?? post.publishedAt),
       changefreq: "monthly" as const,
       priority: 0.7,
+    })),
+    ...events.map((event) => ({
+      loc: absoluteUrl(`/events/${event.slug}`),
+      lastmod: toIsoDate(event.startsAt),
+      changefreq: "weekly" as const,
+      priority: 0.6,
     })),
   ];
 

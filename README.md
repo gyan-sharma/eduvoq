@@ -38,7 +38,7 @@ docker compose up --build
 - Liveness: [http://localhost/api/health](http://localhost/api/health)
 - Readiness: [http://localhost/api/ready](http://localhost/api/ready)
 
-`AUTH_URL` defaults to `http://localhost:3000` (direct Next). When using Caddy on `:80`, set `AUTH_URL=http://localhost`.
+Compose substitutes `AUTH_URL` from `.env` (default `http://localhost:3000` for direct Next). For Caddy on `:80`, set `AUTH_URL=http://localhost` in `.env`.
 
 ## Scripts
 

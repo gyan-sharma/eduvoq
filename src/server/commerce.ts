@@ -206,6 +206,22 @@ async function lockProducts(
   return map;
 }
 
+/** Cart row first, then line items — serializes concurrent placeOrder. */
+async function lockCartForUpdate(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<{ cartId: string; items: Array<{ productId: string; qty: number }> }> {
+  const carts = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT id FROM Cart WHERE userId = ${userId} FOR UPDATE
+  `;
+  const cartId = carts[0]?.id;
+  if (!cartId) return { cartId: "", items: [] };
+  const items = await tx.$queryRaw<Array<{ productId: string; qty: number }>>`
+    SELECT productId, qty FROM CartItem WHERE cartId = ${cartId} FOR UPDATE
+  `;
+  return { cartId, items };
+}
+
 function sellableProduct(row: LockedProduct) {
   return {
     id: row.id,
@@ -228,16 +244,27 @@ export async function placeOrderInTransaction(args: {
 }): Promise<{ id: string }> {
   const rates = await loadShippingRates();
 
-  return prisma.$transaction(async (tx) => {
-    const cart = await tx.cart.findUnique({
-      where: { userId: args.userId },
-      include: { items: true },
-    });
-    if (!cart || cart.items.length === 0) {
+  return prisma.$transaction(
+    async (tx) => {
+    const { cartId, items } = await lockCartForUpdate(tx, args.userId);
+    if (!cartId || items.length === 0) {
       throw new CommerceError("Your cart is empty.");
     }
 
-    const productIds = [...new Set(cart.items.map((item) => item.productId))].sort();
+    const openUnpaid = await tx.order.findFirst({
+      where: {
+        userId: args.userId,
+        status: OrderStatus.PENDING_PAYMENT,
+      },
+      select: { id: true },
+    });
+    if (openUnpaid) {
+      throw new CommerceError(
+        "You already have an unpaid order. Pay or cancel it before placing another.",
+      );
+    }
+
+    const productIds = [...new Set(items.map((item) => item.productId))].sort();
     const locked = await lockProducts(tx, productIds);
     const lines: Array<{
       productId: string;
@@ -248,7 +275,7 @@ export async function placeOrderInTransaction(args: {
       type: ProductType;
     }> = [];
 
-    for (const item of cart.items) {
+    for (const item of items) {
       const row = locked.get(item.productId);
       if (!row) throw new CommerceError("A product in your cart is no longer available.");
       const product = sellableProduct(row);
@@ -331,7 +358,9 @@ export async function placeOrderInTransaction(args: {
       select: { id: true },
     });
 
-    await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+    await tx.cartItem.deleteMany({ where: { cartId } });
     return order;
-  });
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
+  );
 }

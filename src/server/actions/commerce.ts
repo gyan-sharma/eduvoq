@@ -208,6 +208,15 @@ export async function saveAddress(
     };
 
     if (addressId) {
+      const used = await prisma.order.count({
+        where: { shippingAddressId: addressId, userId: user.id },
+      });
+      if (used > 0) {
+        return {
+          error:
+            "This address is used on an order and cannot be edited. Add a new address instead.",
+        };
+      }
       const updated = await prisma.address.updateMany({
         where: { id: addressId, userId: user.id },
         data,

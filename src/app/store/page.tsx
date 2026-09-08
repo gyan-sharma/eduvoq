@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { formatInrPaise } from "@/lib/money";
 import { jsonPlainText } from "@/lib/tiptap-text";
-import { catalogWhere, productImagesByOwner } from "@/server/commerce";
+import {
+  catalogWhere,
+  productImagesByOwner,
+  releaseExpiredPendingOrders,
+} from "@/server/commerce";
 import { prisma } from "@/server/db";
 import { isFlagEnabled } from "@/server/flags";
 
@@ -15,6 +19,7 @@ export const metadata: Metadata = {
 };
 
 export default async function StorePage() {
+  await releaseExpiredPendingOrders();
   const [enabled, physical, products] = await Promise.all([
     isFlagEnabled("commerce"),
     isFlagEnabled("commerce_physical"),

@@ -8,7 +8,11 @@ import { AddToCartForm } from "@/components/store/add-to-cart-form";
 import { formatInrPaise } from "@/lib/money";
 import { jsonPlainText } from "@/lib/tiptap-text";
 import { MAX_CART_QTY } from "@/lib/types/commerce";
-import { catalogWhere, productImagesByOwner } from "@/server/commerce";
+import {
+  catalogWhere,
+  productImagesByOwner,
+  releaseExpiredPendingOrders,
+} from "@/server/commerce";
 import { prisma } from "@/server/db";
 import { isFlagEnabled } from "@/server/flags";
 
@@ -39,6 +43,7 @@ export default async function ProductPage({
   params: Promise<Params>;
 }) {
   const { slug } = await params;
+  await releaseExpiredPendingOrders();
   const [product, enabled, physical, session] = await Promise.all([
     prisma.product.findFirst({ where: { slug, ...catalogWhere } }),
     isFlagEnabled("commerce"),
@@ -51,7 +56,6 @@ export default async function ProductPage({
   const imageId = images.get(product.id);
   const signedIn = Boolean(session?.user);
   const loginHref = `/login?callbackUrl=${encodeURIComponent(`/store/products/${product.slug}`)}`;
-  const outOfStock = product.stock === 0;
   const maxQty =
     product.stock == null
       ? MAX_CART_QTY
@@ -62,7 +66,6 @@ export default async function ProductPage({
   let disabledReason: string | undefined;
   if (!enabled) disabledReason = "The store is paused.";
   else if (physicalBlocked) disabledReason = "Physical shipping is paused.";
-  else if (outOfStock) disabledReason = "Out of stock.";
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">

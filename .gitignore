@@ -1,0 +1,16 @@
+node_modules/
+.next/
+out/
+dist/
+coverage/
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+chalknpencil-archive/
+.pnpm-store/
+playwright-report/
+test-results/
+storage/
+*.pem

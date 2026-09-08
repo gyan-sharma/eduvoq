@@ -57,3 +57,43 @@ export function bulletList(...items: Array<string | TipTapNode[]>): TipTapNode {
     })),
   };
 }
+
+function isNode(value: unknown): value is TipTapNode {
+  return typeof value === "object" && value !== null && "type" in value;
+}
+
+export function textFromTipTap(value: unknown): string {
+  if (typeof value === "string") {
+    return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  }
+  if (!isNode(value)) return "";
+  if (value.text) return value.text;
+  const joined = (value.content ?? []).map(textFromTipTap).join(
+    value.type === "paragraph" || value.type === "heading" || value.type === "listItem"
+      ? "\n"
+      : "",
+  );
+  return joined.replace(/\n{3,}/g, "\n\n").trim();
+}
+
+export function plainTextToDoc(body: string): TipTapNode {
+  const blocks = body
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+  if (blocks.length === 0) {
+    return doc(paragraph(""));
+  }
+  return doc(
+    ...blocks.map((block) => {
+      const lines = block.split("\n").map((line) => line.trim()).filter(Boolean);
+      if (lines.length <= 1) return paragraph(block);
+      const parts: Array<string | TipTapNode> = [];
+      lines.forEach((line, index) => {
+        if (index > 0) parts.push({ type: "hardBreak" });
+        parts.push(line);
+      });
+      return paragraph(...parts);
+    }),
+  );
+}

@@ -21,6 +21,13 @@ const generalLinks = [
   { href: "/thank-you", label: "Thank you" },
 ];
 
+const blogLinks = [
+  { href: "/blog", label: "Blogs & Articles" },
+  { href: "/blog/categories/e-magazine", label: "E-magazine" },
+  { href: "/blog/submit", label: "Submit your blog" },
+  { href: "/rss.xml", label: "RSS feed" },
+];
+
 const legalLinks = [
   { href: "/privacy", label: "Privacy Policy" },
   { href: "/terms", label: "Terms and Conditions" },
@@ -36,9 +43,15 @@ function LinkList({
     <ul className="mt-3 flex flex-col gap-2">
       {items.map((item) => (
         <li key={item.href}>
-          <Link href={item.href} className="text-primary hover:underline">
-            {item.label}
-          </Link>
+          {item.href.endsWith(".xml") ? (
+            <a href={item.href} className="text-primary hover:underline">
+              {item.label}
+            </a>
+          ) : (
+            <Link href={item.href} className="text-primary hover:underline">
+              {item.label}
+            </Link>
+          )}
         </li>
       ))}
     </ul>
@@ -56,6 +69,10 @@ export default function SitemapPage() {
         <section>
           <h2 className="font-heading text-lg font-semibold">General</h2>
           <LinkList items={generalLinks} />
+        </section>
+        <section>
+          <h2 className="font-heading text-lg font-semibold">Blog</h2>
+          <LinkList items={blogLinks} />
         </section>
         <section>
           <h2 className="font-heading text-lg font-semibold">Legal</h2>

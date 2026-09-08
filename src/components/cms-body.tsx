@@ -113,6 +113,22 @@ function NodeView({ node }: { node: TipTapNode }) {
 }
 
 export function CmsBody({ body }: { body: unknown }) {
+  if (typeof body === "string") {
+    const text = body.trim();
+    if (!text) return null;
+    return (
+      <div className="max-w-none">
+        {text.split(/\n{2,}/).map((block, index) => (
+          <p
+            key={index}
+            className="mt-4 text-base leading-7 text-foreground/90"
+          >
+            {block}
+          </p>
+        ))}
+      </div>
+    );
+  }
   if (!isNode(body)) {
     return null;
   }

@@ -1,5 +1,7 @@
 import {
   ConsultationMode,
+  PostKind,
+  PostStatus,
   Prisma,
   PrismaClient,
   ProductType,
@@ -8,7 +10,9 @@ import {
 } from "@prisma/client";
 import { hashPassword } from "../src/lib/password";
 
+import { blogCategories, blogPosts, blogTags } from "../src/content/blog";
 import { cmsPages } from "../src/content/cms";
+import { textFromTipTap } from "../src/content/tiptap";
 
 const prisma = new PrismaClient();
 
@@ -30,7 +34,7 @@ function richText(text: string) {
 async function main() {
   const passwordHash = await hashPassword(DEV_ADMIN_PASSWORD);
 
-  await prisma.user.upsert({
+  const admin = await prisma.user.upsert({
     where: { email: "admin@eduvoq.com" },
     update: {
       username: "admin",
@@ -257,6 +261,78 @@ async function main() {
         published: true,
       },
     });
+  }
+
+  const categoryIds = new Map<string, string>();
+  for (const category of blogCategories) {
+    const row = await prisma.category.upsert({
+      where: { slug: category.slug },
+      update: { name: category.name },
+      create: { slug: category.slug, name: category.name },
+    });
+    categoryIds.set(row.slug, row.id);
+  }
+
+  const tagIds = new Map<string, string>();
+  for (const tag of blogTags) {
+    const row = await prisma.tag.upsert({
+      where: { slug: tag.slug },
+      update: { name: tag.name },
+      create: { slug: tag.slug, name: tag.name },
+    });
+    tagIds.set(row.slug, row.id);
+  }
+
+  for (const post of blogPosts) {
+    const bodyJson = post.bodyJson as Prisma.InputJsonValue;
+    const publishedAt = new Date(post.publishedAt);
+    const row = await prisma.post.upsert({
+      where: { slug: post.slug },
+      update: {
+        title: post.title,
+        excerpt: post.excerpt,
+        bodyJson,
+        bodyText: textFromTipTap(post.bodyJson),
+        kind: post.kind === "EMAGAZINE" ? PostKind.EMAGAZINE : PostKind.BLOG,
+        status: PostStatus.PUBLISHED,
+        authorId: admin.id,
+        seoTitle: post.seoTitle ?? null,
+        seoDescription: post.seoDescription ?? null,
+        publishedAt,
+      },
+      create: {
+        slug: post.slug,
+        title: post.title,
+        excerpt: post.excerpt,
+        bodyJson,
+        bodyText: textFromTipTap(post.bodyJson),
+        kind: post.kind === "EMAGAZINE" ? PostKind.EMAGAZINE : PostKind.BLOG,
+        status: PostStatus.PUBLISHED,
+        authorId: admin.id,
+        seoTitle: post.seoTitle ?? null,
+        seoDescription: post.seoDescription ?? null,
+        publishedAt,
+      },
+    });
+
+    await prisma.postCategory.deleteMany({ where: { postId: row.id } });
+    await prisma.postTag.deleteMany({ where: { postId: row.id } });
+
+    const postCategories = post.categorySlugs
+      .map((slug) => categoryIds.get(slug))
+      .filter((id): id is string => Boolean(id))
+      .map((categoryId) => ({ postId: row.id, categoryId }));
+    if (postCategories.length > 0) {
+      await prisma.postCategory.createMany({ data: postCategories });
+    }
+
+    const postTags = post.tagSlugs
+      .map((slug) => tagIds.get(slug))
+      .filter((id): id is string => Boolean(id))
+      .map((tagId) => ({ postId: row.id, tagId }));
+    if (postTags.length > 0) {
+      await prisma.postTag.createMany({ data: postTags });
+    }
   }
 }
 

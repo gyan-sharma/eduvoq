@@ -10,7 +10,7 @@ export function AuthCard({
   children: ReactNode;
 }) {
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-12">
+    <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-12">
       <div className="rounded-xl border border-stone-200 bg-white p-8 shadow-sm">
         <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
           {title}
@@ -20,6 +20,6 @@ export function AuthCard({
         ) : null}
         <div className="mt-6">{children}</div>
       </div>
-    </main>
+    </div>
   );
 }

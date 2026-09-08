@@ -179,7 +179,13 @@ function MobileLink({
   );
 }
 
-export function MobileNav() {
+export function MobileNav({
+  signedIn = false,
+  staff = false,
+}: {
+  signedIn?: boolean;
+  staff?: boolean;
+}) {
   const pathname = usePathname();
 
   return (
@@ -250,16 +256,40 @@ export function MobileNav() {
           </ul>
         </nav>
         <SheetFooter className="border-t sm:flex-row">
-          <Button variant="outline" className="flex-1" asChild>
-            <SheetClose asChild>
-              <Link href={authLinks[0].href}>{authLinks[0].label}</Link>
-            </SheetClose>
-          </Button>
-          <Button className="flex-1" asChild>
-            <SheetClose asChild>
-              <Link href={authLinks[1].href}>{authLinks[1].label}</Link>
-            </SheetClose>
-          </Button>
+          {signedIn ? (
+            <>
+              <Button variant="outline" className="flex-1" asChild>
+                <SheetClose asChild>
+                  <Link href="/cart">Cart</Link>
+                </SheetClose>
+              </Button>
+              {staff ? (
+                <Button variant="outline" className="flex-1" asChild>
+                  <SheetClose asChild>
+                    <Link href="/admin">Admin</Link>
+                  </SheetClose>
+                </Button>
+              ) : null}
+              <Button className="flex-1" asChild>
+                <SheetClose asChild>
+                  <Link href="/account">Account</Link>
+                </SheetClose>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" className="flex-1" asChild>
+                <SheetClose asChild>
+                  <Link href={authLinks[0].href}>{authLinks[0].label}</Link>
+                </SheetClose>
+              </Button>
+              <Button className="flex-1" asChild>
+                <SheetClose asChild>
+                  <Link href={authLinks[1].href}>{authLinks[1].label}</Link>
+                </SheetClose>
+              </Button>
+            </>
+          )}
         </SheetFooter>
       </SheetContent>
     </Sheet>

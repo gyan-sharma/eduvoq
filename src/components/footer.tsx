@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { CONTACT_EMAIL, footerColumns } from "@/lib/nav";
+import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
 
 export function Footer() {
   return (
@@ -8,11 +9,11 @@ export function Footer() {
       <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-4 lg:px-8">
         <div className="max-w-xs">
           <Link href="/" className="font-heading text-lg font-semibold tracking-tight">
-            EduVoq
+            {SITE_NAME}
           </Link>
           <p className="mt-2 text-sm text-muted-foreground">
-            Connecting Educators. A professional network for school teachers and
-            K-12 stakeholders.
+            {SITE_TAGLINE}. A professional network for school teachers and K-12
+            stakeholders.
           </p>
           <a
             href={`mailto:${CONTACT_EMAIL}`}

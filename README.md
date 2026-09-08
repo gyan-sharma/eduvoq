@@ -95,4 +95,8 @@ Public `/events` and `/events/[slug]` list published events. Wix science-fair / 
 | `pnpm test` | Vitest (age-gate, storage, entitlements, commerce, payments) |
 | `pnpm db:seed` | Seed admin, catalog, consultation services, shipping rates |
 
+## Production cutover
+
+Canonical URL is `https://www.eduvoq.com`. DNS A records for `@` and `www` point at neojn (`68.183.85.203`). Apex 301s to www via host Caddy. Wix path aliases are 301s in `redirects.json`. See [docs/dns-cutover.md](docs/dns-cutover.md).
+
 Do not commit secrets or the `chalknpencil-archive/` snapshot.

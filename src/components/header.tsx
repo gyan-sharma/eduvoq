@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { Role } from "@prisma/client";
+
+import { MobileNav, Nav } from "@/components/nav";
+import { Button } from "@/components/ui/button";
 import { auth } from "@/auth";
+import { authLinks } from "@/lib/nav";
+import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
 
 export async function Header() {
   const session = await auth();
@@ -9,55 +14,54 @@ export async function Header() {
     session?.user?.role === Role.STAFF || session?.user?.role === Role.ADMIN;
 
   return (
-    <header className="border-b border-stone-200 bg-white">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-        <Link
-          href="/"
-          className="text-lg font-semibold tracking-tight text-emerald-950"
-        >
-          EduVoq
+    <header className="sticky top-0 z-40 isolate overflow-visible border-b">
+      {/* Blur on a sibling layer so it does not clip the nav viewport. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 bg-background/90 backdrop-blur-md"
+      />
+      <div className="relative mx-auto flex h-16 w-full max-w-7xl items-center gap-2 px-4 sm:px-6 lg:px-8 2xl:gap-3">
+        <Link href="/" className="flex shrink-0 items-center gap-2.5">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-primary font-heading text-sm font-semibold text-primary-foreground">
+            E
+          </span>
+          <span className="flex flex-col leading-none">
+            <span className="font-heading text-base font-semibold tracking-tight">
+              {SITE_NAME}
+            </span>
+            <span className="mt-0.5 hidden text-[0.65rem] tracking-wide text-muted-foreground uppercase sm:block xl:hidden 2xl:block">
+              {SITE_TAGLINE}
+            </span>
+          </span>
         </Link>
-        <nav className="flex flex-wrap items-center gap-4 text-sm text-stone-700">
-          <Link href="/store" className="hover:text-emerald-800">
-            Store
-          </Link>
-          <Link href="/events" className="hover:text-emerald-800">
-            Events
-          </Link>
-          <Link href="/sample-papers" className="hover:text-emerald-800">
-            Sample papers
-          </Link>
+        <Nav />
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           {signedIn ? (
             <>
-              <Link href="/resources" className="hover:text-emerald-800">
-                Resource Corner
-              </Link>
-              <Link href="/cart" className="hover:text-emerald-800">
-                Cart
-              </Link>
-              <Link href="/account" className="hover:text-emerald-800">
-                Account
-              </Link>
+              <Button variant="ghost" className="hidden sm:inline-flex" asChild>
+                <Link href="/cart">Cart</Link>
+              </Button>
               {staff ? (
-                <Link href="/admin" className="hover:text-emerald-800">
-                  Admin
-                </Link>
+                <Button variant="ghost" className="hidden sm:inline-flex" asChild>
+                  <Link href="/admin">Admin</Link>
+                </Button>
               ) : null}
+              <Button className="hidden sm:inline-flex" asChild>
+                <Link href="/account">Account</Link>
+              </Button>
             </>
           ) : (
             <>
-              <Link href="/login" className="hover:text-emerald-800">
-                Log in
-              </Link>
-              <Link
-                href="/register"
-                className="rounded-md bg-emerald-800 px-3 py-1.5 text-white hover:bg-emerald-700"
-              >
-                Join
-              </Link>
+              <Button variant="ghost" className="hidden sm:inline-flex" asChild>
+                <Link href={authLinks[0].href}>{authLinks[0].label}</Link>
+              </Button>
+              <Button className="hidden sm:inline-flex" asChild>
+                <Link href={authLinks[1].href}>{authLinks[1].label}</Link>
+              </Button>
             </>
           )}
-        </nav>
+          <MobileNav signedIn={signedIn} staff={staff} />
+        </div>
       </div>
     </header>
   );

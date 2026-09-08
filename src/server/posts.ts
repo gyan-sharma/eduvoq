@@ -337,7 +337,7 @@ export function postMetadata(post: PostView): Metadata {
       authors: post.authorName ? [post.authorName] : undefined,
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title,
       description,
     },

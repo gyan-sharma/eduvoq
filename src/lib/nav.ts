@@ -90,8 +90,8 @@ export const primaryNav: PrimaryNavItem[] = [
 ];
 
 export const authLinks: NavLink[] = [
-  { href: "/login", label: "Login" },
-  { href: "/register", label: "Register" },
+  { href: "/login", label: "Log in" },
+  { href: "/register", label: "Join" },
 ];
 
 export const footerColumns: NavGroup[] = [

@@ -18,6 +18,9 @@ const generalLinks = [
   { href: "/careers", label: "Careers" },
   { href: "/news", label: "News" },
   { href: "/pricing", label: "Plans & Pricing" },
+  { href: "/consult", label: "Expert consultation" },
+  { href: "/members", label: "Community Members" },
+  { href: "/store", label: "Store" },
   { href: "/thank-you", label: "Thank you" },
 ];
 

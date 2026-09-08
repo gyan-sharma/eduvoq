@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { UserStatus } from "@prisma/client";
@@ -8,6 +9,12 @@ import { SocialButtons } from "@/components/auth/social-buttons";
 import { errorClass } from "@/components/auth/ui";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Join",
+  description: "Create an EduVoq account. You must be 18 or older.",
+  robots: { index: false, follow: true },
+};
 
 export default async function RegisterPage({
   searchParams,

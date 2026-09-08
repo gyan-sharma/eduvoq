@@ -1,20 +1,67 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Geist, Source_Serif_4 } from "next/font/google";
+
+import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
+import { SkipLink } from "@/components/skip-link";
+import {
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_TITLE,
+  siteUrl,
+} from "@/lib/site";
+import { cn } from "@/lib/utils";
+
 import "./globals.css";
 
+const geist = Geist({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
+
+const sourceSerif = Source_Serif_4({
+  subsets: ["latin"],
+  variable: "--font-serif",
+});
+
 export const metadata: Metadata = {
-  title: "EduVoq — Connecting Educators",
-  description:
-    "A professional network and resource hub for school teachers and K-12 stakeholders.",
+  metadataBase: new URL(siteUrl()),
+  title: {
+    default: SITE_TITLE,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: "website",
+    locale: "en_IN",
+    url: "/",
+    siteName: SITE_NAME,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body className="flex min-h-screen flex-col bg-stone-50 antialiased">
+    <html
+      lang="en"
+      className={cn("font-sans", geist.variable, sourceSerif.variable)}
+    >
+      <body className="flex min-h-screen flex-col antialiased">
+        <SkipLink />
         <Header />
-        {children}
+        <main id="main" tabIndex={-1} className="flex-1 outline-none">
+          {children}
+        </main>
+        <Footer />
       </body>
     </html>
   );

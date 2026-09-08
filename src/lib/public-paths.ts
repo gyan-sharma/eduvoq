@@ -11,8 +11,12 @@ export const sitemapStaticPaths = [
   "/sitemap",
   "/pricing",
   "/services",
+  "/consult",
   "/blog",
   "/blog/submit",
+  "/members",
+  "/store",
+  "/sample-papers",
   "/events",
 ] as const;
 

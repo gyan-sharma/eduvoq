@@ -80,3 +80,15 @@ describe("SEO XML", () => {
     expect(body).toContain("Host: www.eduvoq.com");
   });
 });
+
+describe("site identity", () => {
+  it("uses EduVoq Connecting Educators copy", async () => {
+    const { SITE_NAME, SITE_TAGLINE, SITE_TITLE, SITE_DESCRIPTION } =
+      await import("@/lib/site");
+    expect(SITE_NAME).toBe("EduVoq");
+    expect(SITE_TAGLINE).toBe("Connecting Educators");
+    expect(SITE_TITLE).toContain("Connecting Educators");
+    expect(SITE_DESCRIPTION).toMatch(/advertisement-free/);
+    expect(SITE_DESCRIPTION).toMatch(/school teachers/);
+  });
+});

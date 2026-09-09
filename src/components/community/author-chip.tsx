@@ -1,19 +1,27 @@
 import Link from "next/link";
 import { displayName, initials } from "@/lib/community";
+import { firstName } from "@/lib/profile-privacy";
 
 export function AuthorChip({
   name,
   username,
   image,
+  restricted = false,
 }: {
   name: string | null;
   username: string | null;
   image: string | null;
+  restricted?: boolean;
 }) {
-  const label = displayName({ name, username });
-  const avatar = image ? (
+  const label = restricted
+    ? firstName(name) || username || "Student"
+    : displayName({ name, username });
+  const photo = restricted ? null : image;
+  const href = restricted ? null : username;
+
+  const avatar = photo ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={image} alt="" className="size-10 rounded-full object-cover" />
+    <img src={photo} alt="" className="size-10 rounded-full object-cover" />
   ) : (
     <span
       aria-hidden
@@ -26,7 +34,7 @@ export function AuthorChip({
   const text = (
     <span className="min-w-0">
       <span className="block truncate font-medium text-foreground">{label}</span>
-      {username ? (
+      {href ? (
         <span className="block truncate text-sm text-muted-foreground">
           @{username}
         </span>
@@ -34,7 +42,7 @@ export function AuthorChip({
     </span>
   );
 
-  if (!username) {
+  if (!href) {
     return (
       <div className="flex items-center gap-3">
         {avatar}
@@ -45,7 +53,7 @@ export function AuthorChip({
 
   return (
     <Link
-      href={`/members/${username}`}
+      href={`/members/${href}`}
       className="flex items-center gap-3 hover:opacity-90"
     >
       {avatar}

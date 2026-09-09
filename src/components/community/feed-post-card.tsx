@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AuthorChip } from "@/components/community/author-chip";
 import { BodyText } from "@/components/community/body-text";
 import { CommentForm } from "@/components/community/comment-form";
+import { FeedReactionBar } from "@/components/community/feed-reaction-bar";
 import {
   FEED_COMMENT_FOCUS,
   feedPostHref,
@@ -26,6 +27,9 @@ export function FeedPostCard({
   canComment,
   highlighted = false,
   focused = false,
+  reactionCounts = {},
+  myReactions = [],
+  canReact = false,
 }: {
   post: {
     id: string;
@@ -42,6 +46,9 @@ export function FeedPostCard({
   canComment: boolean;
   highlighted?: boolean;
   focused?: boolean;
+  reactionCounts?: Record<string, number>;
+  myReactions?: string[];
+  canReact?: boolean;
 }) {
   const chronological = [...comments].reverse();
   const hidden = Math.max(0, commentCount - chronological.length);
@@ -70,6 +77,12 @@ export function FeedPostCard({
       <div className="mt-4">
         <BodyText value={post.bodyJson} />
       </div>
+      <FeedReactionBar
+        postId={post.id}
+        counts={reactionCounts}
+        mine={myReactions}
+        canReact={canReact}
+      />
       {chronological.length > 0 ? (
         <ul className="mt-5 space-y-3 border-t border-border pt-4">
           {chronological.map((comment) => (

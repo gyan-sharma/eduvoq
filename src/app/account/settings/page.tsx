@@ -57,8 +57,8 @@ export default async function AccountSettingsPage() {
         <p className="mt-1 text-sm text-stone-600">
           {isStudent
             ? user.isProfilePublic
-              ? "A parent opted this account into a first-name and grade card. You cannot change that here, and you still will not appear in the educators directory."
-              : "Student accounts stay out of /members. Only a parent can opt in to a first-name and grade public card."
+              ? "A parent opted this account into a first-name and grade card on Members → Student Circle. You cannot change that here, and you still will not appear with educators."
+              : "Student accounts stay out of the educators list. Only a parent can opt in to a first-name and grade card under Members → Student Circle."
             : user.role === Role.PARENT
               ? "Parents are never listed in the educators directory. A public profile URL is optional and does not enroll you there."
               : "Public educator profiles appear at /members. Hide yours any time."}

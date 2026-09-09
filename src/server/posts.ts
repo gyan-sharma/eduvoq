@@ -156,8 +156,8 @@ async function queryPublished(kind?: PostKind): Promise<PostView[] | null> {
 }
 
 export async function listPublishedBlogPosts(): Promise<PostListItem[]> {
-  const rows = await queryPublished(PostKind.BLOG);
-  return rows ?? seedPublished(PostKind.BLOG);
+  const rows = await queryPublished();
+  return rows ?? seedPublished();
 }
 
 export async function listPublishedPosts(): Promise<PostView[]> {

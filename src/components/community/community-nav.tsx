@@ -5,6 +5,7 @@ const links: { href: string; label: string; exact?: boolean }[] = [
   { href: "/community", label: "Teacher Social", exact: true },
   { href: "/groups", label: "Groups" },
   { href: "/members", label: "Members" },
+  { href: "/forum", label: "Forum" },
 ];
 
 export function CommunityNav({ current }: { current: string }) {

@@ -23,8 +23,8 @@ export function DemoGroupsIndex() {
         Groups
       </h1>
       <p className="mt-3 text-muted-foreground">
-        Sample educator groups. Official groups are Job Alerts and Social
-        Network.
+        Sample groups. Official spaces include Job Alerts, Social Network, and
+        Student Circle.
       </p>
       <CommunityNav current="/groups" />
       <ul className="mt-10 grid gap-4">

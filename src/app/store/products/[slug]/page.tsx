@@ -5,6 +5,7 @@ import { ProductType } from "@prisma/client";
 import { auth } from "@/auth";
 import { buttonClass, secondaryButtonClass } from "@/components/auth/ui";
 import { AddToCartForm } from "@/components/store/add-to-cart-form";
+import { productMedia } from "@/content/product-media";
 import { formatInrPaise } from "@/lib/money";
 import { jsonPlainText } from "@/lib/tiptap-text";
 import { MAX_CART_QTY } from "@/lib/types/commerce";
@@ -54,6 +55,9 @@ export default async function ProductPage({
 
   const images = await productImagesByOwner([product.id]);
   const imageId = images.get(product.id);
+  const src = imageId
+    ? `/api/files/${imageId}`
+    : productMedia[product.slug];
   const signedIn = Boolean(session?.user);
   const loginHref = `/login?callbackUrl=${encodeURIComponent(`/store/products/${product.slug}`)}`;
   const maxQty =
@@ -76,10 +80,10 @@ export default async function ProductPage({
       </p>
       <div className="mt-6 overflow-hidden rounded-xl border border-stone-200 bg-white">
         <div className="flex aspect-[16/9] items-center justify-center bg-stone-100 text-sm text-stone-500">
-          {imageId ? (
+          {src ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={`/api/files/${imageId}`}
+              src={src}
               alt=""
               className="h-full w-full object-cover"
             />

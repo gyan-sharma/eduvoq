@@ -9,6 +9,7 @@ export type CmsPageView = {
   bodyJson: unknown;
   seoTitle: string | null;
   seoDescription: string | null;
+  images: string[];
 };
 
 function fromSeed(page: CmsPageSeed): CmsPageView {
@@ -18,6 +19,7 @@ function fromSeed(page: CmsPageSeed): CmsPageView {
     bodyJson: page.bodyJson,
     seoTitle: page.seoTitle ?? null,
     seoDescription: page.seoDescription ?? null,
+    images: page.images ?? [],
   };
 }
 
@@ -33,6 +35,7 @@ export async function getCmsPage(slug: string): Promise<CmsPageView | null> {
         bodyJson: page.bodyJson,
         seoTitle: page.seoTitle,
         seoDescription: page.seoDescription,
+        images: fallback?.images ?? [],
       };
     }
   } catch {

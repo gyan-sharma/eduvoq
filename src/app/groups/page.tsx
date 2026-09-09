@@ -2,8 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CommunityNav } from "@/components/community/community-nav";
+import { CreateGroupForm } from "@/components/groups/create-group-form";
 import { JoinGroupButton } from "@/components/groups/join-group-button";
-import { canUseEducatorCommunity } from "@/lib/community";
+import {
+  GROUP_AUDIENCE_STUDENT,
+  canCreateGroup,
+  canJoinGroupAudience,
+  visibleGroupAudiences,
+} from "@/lib/community";
 import { DemoGroupsIndex } from "@/components/demo/demo-groups";
 import { prisma } from "@/server/db";
 import { isDemoMode } from "@/server/demo";
@@ -14,7 +20,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Groups",
   description:
-    "Educator groups on EduVoq — Job Alerts and Social Network.",
+    "Educator and student groups on EduVoq — Job Alerts, Social Network, and Student Circle.",
   robots: { index: false, follow: false },
 };
 
@@ -23,8 +29,9 @@ export default async function GroupsPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login?callbackUrl=/groups");
 
-  const gate = canUseEducatorCommunity(user);
+  const createGate = canCreateGroup(user);
   const groups = await prisma.group.findMany({
+    where: { audience: { in: visibleGroupAudiences(user.role) } },
     orderBy: [{ isOfficial: "desc" }, { name: "asc" }],
     include: {
       _count: { select: { memberships: true, posts: true } },
@@ -46,19 +53,21 @@ export default async function GroupsPage() {
       </h1>
       <p className="mt-3 text-muted-foreground">
         Join groups of your choice, share thoughts, and interact with others.
-        Official groups are seeded for Job Alerts and Social Network.
+        Official groups include Job Alerts, Social Network, and Student Circle.
       </p>
       <CommunityNav current="/groups" />
 
+      {createGate.ok ? <CreateGroupForm /> : null}
+
       {groups.length === 0 ? (
         <p className="mt-10 rounded-xl border border-dashed border-border bg-card p-8 text-sm text-muted-foreground">
-          No groups yet. Seed the database to create Job Alerts and Social
-          Network.
+          No groups in your circle yet.
         </p>
       ) : (
         <ul className="mt-10 grid gap-4">
           {groups.map((group) => {
             const isMember = group.memberships.length > 0;
+            const joinGate = canJoinGroupAudience(user, group.audience);
             return (
               <li
                 key={group.id}
@@ -67,7 +76,11 @@ export default async function GroupsPage() {
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className="text-xs font-medium tracking-wide text-primary uppercase">
-                      {group.isOfficial ? "Official group" : "Group"}
+                      {group.audience === GROUP_AUDIENCE_STUDENT
+                        ? "Student Circle"
+                        : group.isOfficial
+                          ? "Official group"
+                          : "Educator group"}
                     </p>
                     <h2 className="mt-1 font-heading text-xl font-semibold tracking-tight">
                       <Link
@@ -92,8 +105,8 @@ export default async function GroupsPage() {
                   <JoinGroupButton
                     slug={group.slug}
                     isMember={isMember}
-                    canJoin={gate.ok}
-                    blockedReason={gate.ok ? undefined : gate.reason}
+                    canJoin={joinGate.ok}
+                    blockedReason={joinGate.ok ? undefined : joinGate.reason}
                   />
                 </div>
               </li>

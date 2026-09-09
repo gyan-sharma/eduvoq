@@ -9,6 +9,10 @@ import {
   UserStatus,
 } from "@prisma/client";
 import { hashPassword } from "../src/lib/password";
+import { extractPosts, readExtractedPosts } from "../scripts/migrate-wix/extract-posts";
+import { resolveArchiveRoot } from "../scripts/migrate-wix/archive";
+import { rewriteTipTapLocalMedia } from "../scripts/migrate-wix/wix-urls";
+import mediaIndex from "../src/content/wix-media-index.json";
 
 import { blogCategories, blogPosts, blogTags } from "../src/content/blog";
 import { cmsPages } from "../src/content/cms";
@@ -336,6 +340,75 @@ async function main() {
     }
   }
 
+  const wixPosts =
+    readExtractedPosts() ??
+    (resolveArchiveRoot() ? extractPosts({ write: false }) : null);
+  if (wixPosts && wixPosts.posts.length > 0) {
+    console.log(`Importing ${wixPosts.posts.length} Wix posts`);
+    for (const post of wixPosts.posts) {
+      for (const tag of post.tags) {
+        if (!tagIds.has(tag.slug)) {
+          const row = await prisma.tag.upsert({
+            where: { slug: tag.slug },
+            update: { name: tag.name },
+            create: { slug: tag.slug, name: tag.name },
+          });
+          tagIds.set(row.slug, row.id);
+        }
+      }
+      const rewritten = rewriteTipTapLocalMedia(
+        post.bodyJson as never,
+        mediaIndex as Record<string, string>,
+      );
+      const bodyJson = rewritten as Prisma.InputJsonValue;
+      const publishedAt = new Date(post.publishedAt);
+      const row = await prisma.post.upsert({
+        where: { slug: post.slug },
+        update: {
+          title: post.title,
+          excerpt: post.excerpt,
+          bodyJson,
+          bodyText: post.bodyText,
+          kind: post.kind === "EMAGAZINE" ? PostKind.EMAGAZINE : PostKind.BLOG,
+          status: PostStatus.PUBLISHED,
+          authorId: admin.id,
+          seoTitle: post.seoTitle ?? null,
+          seoDescription: post.seoDescription ?? null,
+          publishedAt,
+        },
+        create: {
+          slug: post.slug,
+          title: post.title,
+          excerpt: post.excerpt,
+          bodyJson,
+          bodyText: post.bodyText,
+          kind: post.kind === "EMAGAZINE" ? PostKind.EMAGAZINE : PostKind.BLOG,
+          status: PostStatus.PUBLISHED,
+          authorId: admin.id,
+          seoTitle: post.seoTitle ?? null,
+          seoDescription: post.seoDescription ?? null,
+          publishedAt,
+        },
+      });
+      await prisma.postCategory.deleteMany({ where: { postId: row.id } });
+      await prisma.postTag.deleteMany({ where: { postId: row.id } });
+      const postCategories = post.categorySlugs
+        .map((slug) => categoryIds.get(slug))
+        .filter((id): id is string => Boolean(id))
+        .map((categoryId) => ({ postId: row.id, categoryId }));
+      if (postCategories.length > 0) {
+        await prisma.postCategory.createMany({ data: postCategories });
+      }
+      const postTags = post.tagSlugs
+        .map((slug) => tagIds.get(slug))
+        .filter((id): id is string => Boolean(id))
+        .map((tagId) => ({ postId: row.id, tagId }));
+      if (postTags.length > 0) {
+        await prisma.postTag.createMany({ data: postTags });
+      }
+    }
+  }
+
   // Do not seed Wix event boilerplate (annual-science-fair / spring-is-here-field-trip).
   // Staff create events in /admin/events with original copy.
 
@@ -405,6 +478,7 @@ async function main() {
       description:
         "Openings, circulars, and transfer notes for school teachers across boards.",
       isOfficial: true,
+      audience: "EDUCATOR",
       createdById: admin.id,
     },
     create: {
@@ -413,6 +487,7 @@ async function main() {
       description:
         "Openings, circulars, and transfer notes for school teachers across boards.",
       isOfficial: true,
+      audience: "EDUCATOR",
       createdById: admin.id,
     },
   });
@@ -424,6 +499,7 @@ async function main() {
       description:
         "Share thoughts, classroom practice, and polls with other educators.",
       isOfficial: true,
+      audience: "EDUCATOR",
       createdById: admin.id,
     },
     create: {
@@ -432,11 +508,33 @@ async function main() {
       description:
         "Share thoughts, classroom practice, and polls with other educators.",
       isOfficial: true,
+      audience: "EDUCATOR",
       createdById: admin.id,
     },
   });
 
-  for (const group of [jobAlerts, socialNetwork]) {
+  const studentCircle = await prisma.group.upsert({
+    where: { slug: "student-circle" },
+    update: {
+      name: "Student Circle",
+      description:
+        "A supervised space for students and parents. First names only in public cards. No DMs.",
+      isOfficial: true,
+      audience: "STUDENT",
+      createdById: admin.id,
+    },
+    create: {
+      slug: "student-circle",
+      name: "Student Circle",
+      description:
+        "A supervised space for students and parents. First names only in public cards. No DMs.",
+      isOfficial: true,
+      audience: "STUDENT",
+      createdById: admin.id,
+    },
+  });
+
+  for (const group of [jobAlerts, socialNetwork, studentCircle]) {
     await prisma.groupMember.upsert({
       where: { groupId_userId: { groupId: group.id, userId: admin.id } },
       update: { role: "ADMIN" },

@@ -14,4 +14,5 @@ export async function markNotificationsRead(): Promise<void> {
     data: { readAt: new Date() },
   });
   revalidatePath("/account/notifications");
+  revalidatePath("/");
 }

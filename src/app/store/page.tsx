@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { productMedia } from "@/content/product-media";
 import { formatInrPaise } from "@/lib/money";
 import { jsonPlainText } from "@/lib/tiptap-text";
 import {
@@ -56,6 +57,8 @@ export default async function StorePage() {
       <ul className="mt-8 grid gap-4 sm:grid-cols-2">
         {products.map((product) => {
           const imageId = images.get(product.id);
+          const archiveSrc = productMedia[product.slug];
+          const src = imageId ? `/api/files/${imageId}` : archiveSrc;
           return (
             <li key={product.id}>
               <Link
@@ -63,10 +66,10 @@ export default async function StorePage() {
                 className="flex h-full flex-col overflow-hidden rounded-xl border border-stone-200 bg-white hover:border-emerald-800"
               >
                 <div className="flex aspect-[4/3] items-center justify-center bg-stone-100 text-sm text-stone-500">
-                  {imageId ? (
+                  {src ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={`/api/files/${imageId}`}
+                      src={src}
                       alt=""
                       className="h-full w-full object-cover"
                     />

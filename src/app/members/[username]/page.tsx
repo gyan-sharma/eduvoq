@@ -117,7 +117,7 @@ export default async function MemberProfilePage({
     <article className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6">
       <p className="text-sm text-muted-foreground">
         <Link href="/members" className="text-primary hover:underline">
-          ← Educators
+          ← Members
         </Link>
       </p>
 
@@ -163,8 +163,21 @@ export default async function MemberProfilePage({
             </p>
           ) : null}
           <p className="mt-3 text-sm text-muted-foreground">
-            {followerCount} follower{followerCount === 1 ? "" : "s"} ·{" "}
-            {followingCount} following · Joined {formatJoined(user.createdAt)}
+            <Link
+              href={`/members/${card.username}/followers`}
+              className="hover:underline"
+            >
+              {followerCount} follower{followerCount === 1 ? "" : "s"}
+            </Link>
+            {" · "}
+            <Link
+              href={`/members/${card.username}/following`}
+              className="hover:underline"
+            >
+              {followingCount} following
+            </Link>
+            {" · Joined "}
+            {formatJoined(user.createdAt)}
           </p>
         </div>
         <div className="sm:pt-6">

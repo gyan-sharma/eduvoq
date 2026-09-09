@@ -16,7 +16,7 @@ export async function CmsDocument({
   if (!page) notFound();
 
   return (
-    <MarketingPage title={page.title}>
+    <MarketingPage title={page.title} images={page.images}>
       <CmsBody body={page.bodyJson} />
       {footer}
     </MarketingPage>

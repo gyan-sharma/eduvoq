@@ -107,6 +107,19 @@ function NodeView({ node }: { node: TipTapNode }) {
       return <br />;
     case "text":
       return wrapMarks(node.text ?? "", node.marks);
+    case "image": {
+      const src = String(node.attrs?.src ?? "");
+      if (!src) return null;
+      const alt = String(node.attrs?.alt ?? "");
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={alt}
+          className="my-8 h-auto w-full max-h-[28rem] rounded-2xl object-contain"
+        />
+      );
+    }
     default:
       return <>{renderNodes(node.content)}</>;
   }

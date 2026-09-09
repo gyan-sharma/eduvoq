@@ -63,6 +63,7 @@ export const communityLinks: NavLink[] = [
   { href: "/members", label: "Members" },
   { href: "/forum", label: "Forums" },
   { href: "/community", label: "Teacher Social" },
+  { href: "/groups", label: "Groups" },
 ];
 
 export const primaryNav: PrimaryNavItem[] = [
@@ -108,6 +109,7 @@ export const footerColumns: NavGroup[] = [
     heading: "Community",
     items: [
       { href: "/community", label: "Teacher Social" },
+      { href: "/groups", label: "Groups" },
       { href: "/forum", label: "EduVoq Forums" },
       { href: "/members", label: "Community Members" },
       { href: "/blog", label: "Blogs & Articles" },

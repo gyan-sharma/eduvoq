@@ -81,6 +81,16 @@ export function directoryWhere() {
   };
 }
 
+/** Opted-in student cards: first name + grade only. */
+export function studentDirectoryWhere() {
+  return {
+    status: UserStatus.ACTIVE,
+    role: Role.STUDENT,
+    username: { not: null },
+    isProfilePublic: true,
+  };
+}
+
 export function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter(

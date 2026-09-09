@@ -1,15 +1,22 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Prisma } from "@prisma/client";
+import { NotificationType, Prisma, Role } from "@prisma/client";
 import {
-  canUseEducatorCommunity,
+  canCreateGroup,
+  canJoinGroupAudience,
+  defaultGroupAudience,
+  displayName,
   isValidOptionIdx,
   parsePollJson,
 } from "@/lib/community";
+import { firstName } from "@/lib/profile-privacy";
+import { slugify } from "@/lib/slug";
 import { plainTextToDoc } from "@/lib/tiptap-text";
 import {
+  createGroupSchema,
   createPollSchema,
   groupPostSchema,
   groupSlugSchema,
@@ -24,8 +31,14 @@ export type GroupActionState = {
   message?: string;
 } | null;
 
+const GROUP_NOTIFY_CAP = 50;
+
 function firstZodError(error: { issues: { message: string }[] }): string {
   return error.issues[0]?.message ?? "Invalid input.";
+}
+
+function actorLabel(user: { role: Role; name: string | null; username: string | null }) {
+  return user.role === Role.STUDENT ? firstName(user.name) : displayName(user);
 }
 
 function revalidateGroup(slug: string) {
@@ -36,7 +49,7 @@ function revalidateGroup(slug: string) {
 async function loadGroup(slug: string) {
   return prisma.group.findUnique({
     where: { slug },
-    select: { id: true, slug: true, name: true },
+    select: { id: true, slug: true, name: true, audience: true },
   });
 }
 
@@ -47,15 +60,91 @@ async function requireMembership(groupId: string, userId: string) {
   });
 }
 
-export async function joinGroup(
+async function uniqueGroupSlug(name: string): Promise<string> {
+  const base = slugify(name, 48);
+  for (let i = 0; i < 12; i += 1) {
+    const slug =
+      i === 0 ? base : `${base}-${randomBytes(2).toString("hex")}`;
+    const taken = await prisma.group.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
+    if (!taken) return slug;
+  }
+  return `${base}-${randomBytes(4).toString("hex")}`;
+}
+
+async function notifyGroupMembers(opts: {
+  groupId: string;
+  groupName: string;
+  groupSlug: string;
+  authorId: string;
+  authorLabel: string;
+  preview: string;
+}) {
+  const members = await prisma.groupMember.findMany({
+    where: { groupId: opts.groupId, userId: { not: opts.authorId } },
+    take: GROUP_NOTIFY_CAP,
+    select: { userId: true },
+  });
+  if (members.length === 0) return;
+  await prisma.notification.createMany({
+    data: members.map((member) => ({
+      userId: member.userId,
+      type: NotificationType.GROUP,
+      title: `${opts.authorLabel} posted in ${opts.groupName}`,
+      body: opts.preview.slice(0, 180) || null,
+      href: `/groups/${opts.groupSlug}`,
+    })),
+  });
+  revalidatePath("/account/notifications");
+}
+
+export async function createGroup(
   _prev: GroupActionState,
   formData: FormData,
 ): Promise<GroupActionState> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const allowed = canUseEducatorCommunity(user);
+  const allowed = canCreateGroup(user);
   if (!allowed.ok) return { error: allowed.reason };
+
+  const parsed = createGroupSchema.safeParse({
+    name: String(formData.get("name") ?? ""),
+    description: String(formData.get("description") ?? ""),
+  });
+  if (!parsed.success) return { error: firstZodError(parsed.error) };
+
+  const slug = await uniqueGroupSlug(parsed.data.name);
+  const audience = defaultGroupAudience(user.role);
+  const description = parsed.data.description?.trim() || null;
+
+  const group = await prisma.group.create({
+    data: {
+      slug,
+      name: parsed.data.name,
+      description,
+      isOfficial: false,
+      audience,
+      createdById: user.id,
+      memberships: {
+        create: { userId: user.id, role: "ADMIN" },
+      },
+    },
+    select: { slug: true },
+  });
+
+  revalidatePath("/groups");
+  redirect(`/groups/${group.slug}`);
+}
+
+export async function joinGroup(
+  _prev: GroupActionState,
+  formData: FormData,
+): Promise<GroupActionState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
 
   const parsed = groupSlugSchema.safeParse({
     slug: String(formData.get("slug") ?? ""),
@@ -64,6 +153,9 @@ export async function joinGroup(
 
   const group = await loadGroup(parsed.data.slug);
   if (!group) return { error: "That group does not exist." };
+
+  const allowed = canJoinGroupAudience(user, group.audience);
+  if (!allowed.ok) return { error: allowed.reason };
 
   await prisma.groupMember.upsert({
     where: { groupId_userId: { groupId: group.id, userId: user.id } },
@@ -105,9 +197,6 @@ export async function createGroupPost(
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const allowed = canUseEducatorCommunity(user);
-  if (!allowed.ok) return { error: allowed.reason };
-
   const parsed = groupPostSchema.safeParse({
     slug: String(formData.get("slug") ?? ""),
     body: String(formData.get("body") ?? ""),
@@ -116,6 +205,9 @@ export async function createGroupPost(
 
   const group = await loadGroup(parsed.data.slug);
   if (!group) return { error: "That group does not exist." };
+
+  const allowed = canJoinGroupAudience(user, group.audience);
+  if (!allowed.ok) return { error: allowed.reason };
 
   const member = await requireMembership(group.id, user.id);
   if (!member) return { error: "Join this group to post." };
@@ -126,6 +218,15 @@ export async function createGroupPost(
       authorId: user.id,
       bodyJson: plainTextToDoc(parsed.data.body) as Prisma.InputJsonValue,
     },
+  });
+
+  await notifyGroupMembers({
+    groupId: group.id,
+    groupName: group.name,
+    groupSlug: group.slug,
+    authorId: user.id,
+    authorLabel: actorLabel(user),
+    preview: parsed.data.body,
   });
 
   revalidateGroup(group.slug);
@@ -139,9 +240,6 @@ export async function createPoll(
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const allowed = canUseEducatorCommunity(user);
-  if (!allowed.ok) return { error: allowed.reason };
-
   const parsed = createPollSchema.safeParse({
     slug: String(formData.get("slug") ?? ""),
     question: String(formData.get("question") ?? ""),
@@ -151,6 +249,9 @@ export async function createPoll(
 
   const group = await loadGroup(parsed.data.slug);
   if (!group) return { error: "That group does not exist." };
+
+  const allowed = canJoinGroupAudience(user, group.audience);
+  if (!allowed.ok) return { error: allowed.reason };
 
   const member = await requireMembership(group.id, user.id);
   if (!member) return { error: "Join this group to post a poll." };
@@ -167,6 +268,15 @@ export async function createPoll(
     },
   });
 
+  await notifyGroupMembers({
+    groupId: group.id,
+    groupName: group.name,
+    groupSlug: group.slug,
+    authorId: user.id,
+    authorLabel: actorLabel(user),
+    preview: parsed.data.question,
+  });
+
   revalidateGroup(group.slug);
   return { ok: true, message: "Poll posted." };
 }
@@ -177,9 +287,6 @@ export async function votePoll(
 ): Promise<GroupActionState> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-
-  const allowed = canUseEducatorCommunity(user);
-  if (!allowed.ok) return { error: allowed.reason };
 
   const parsed = votePollSchema.safeParse({
     groupPostId: String(formData.get("groupPostId") ?? ""),
@@ -192,10 +299,13 @@ export async function votePoll(
     select: {
       id: true,
       pollJson: true,
-      group: { select: { id: true, slug: true } },
+      group: { select: { id: true, slug: true, audience: true } },
     },
   });
   if (!post) return { error: "That poll is no longer available." };
+
+  const allowed = canJoinGroupAudience(user, post.group.audience);
+  if (!allowed.ok) return { error: allowed.reason };
 
   const poll = parsePollJson(post.pollJson);
   if (!poll) return { error: "This post is not a poll." };

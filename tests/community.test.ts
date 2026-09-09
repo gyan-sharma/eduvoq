@@ -1,7 +1,10 @@
 import { Role, UserStatus } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 import {
+  canCreateGroup,
+  canJoinGroupAudience,
   canUseEducatorCommunity,
+  defaultGroupAudience,
   feedPostHref,
   isCuid,
   isValidOptionIdx,
@@ -9,6 +12,7 @@ import {
   parsePollOptions,
   shouldRenderGroupPostBody,
   tallyVotes,
+  visibleGroupAudiences,
 } from "@/lib/community";
 import { plainTextToDoc, textFromTipTap } from "@/lib/tiptap-text";
 import { createPollSchema, votePollSchema } from "@/lib/validators/community";
@@ -42,7 +46,7 @@ describe("canUseEducatorCommunity", () => {
     );
   });
 
-  it("blocks students and parents from posting or joining", () => {
+  it("blocks students and parents from Teacher Social posts", () => {
     expect(canUseEducatorCommunity(student).ok).toBe(false);
     expect(canUseEducatorCommunity(parent).ok).toBe(false);
   });
@@ -54,6 +58,27 @@ describe("canUseEducatorCommunity", () => {
         status: UserStatus.PENDING_PROFILE,
       }).ok,
     ).toBe(false);
+  });
+});
+
+describe("group audience", () => {
+  it("lets students and parents join student groups only", () => {
+    expect(canJoinGroupAudience(student, "STUDENT").ok).toBe(true);
+    expect(canJoinGroupAudience(parent, "STUDENT").ok).toBe(true);
+    expect(canJoinGroupAudience(student, "EDUCATOR").ok).toBe(false);
+    expect(canJoinGroupAudience(parent, "EDUCATOR").ok).toBe(false);
+    expect(canJoinGroupAudience(educator, "STUDENT").ok).toBe(false);
+    expect(canJoinGroupAudience(educator, "EDUCATOR").ok).toBe(true);
+  });
+
+  it("lets staff see both audiences and students create student groups", () => {
+    expect(visibleGroupAudiences(Role.STAFF)).toEqual(["EDUCATOR", "STUDENT"]);
+    expect(visibleGroupAudiences(Role.STUDENT)).toEqual(["STUDENT"]);
+    expect(visibleGroupAudiences(Role.EDUCATOR)).toEqual(["EDUCATOR"]);
+    expect(defaultGroupAudience(Role.STUDENT)).toBe("STUDENT");
+    expect(canCreateGroup(student).ok).toBe(true);
+    expect(canCreateGroup(parent).ok).toBe(false);
+    expect(canCreateGroup(educator).ok).toBe(true);
   });
 });
 

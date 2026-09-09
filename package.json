@@ -14,7 +14,9 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "db:validate": "prisma validate"
+    "db:validate": "prisma validate",
+    "archive:sync": "tsx scripts/migrate-wix/sync.ts",
+    "migrate:wix": "tsx scripts/migrate-wix/sync.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

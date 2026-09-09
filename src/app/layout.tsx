@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Geist, Source_Serif_4 } from "next/font/google";
+import { Poppins } from "next/font/google";
 
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
@@ -15,14 +15,10 @@ import { cn } from "@/lib/utils";
 
 import "./globals.css";
 
-const geist = Geist({
+const poppins = Poppins({
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-sans",
-});
-
-const sourceSerif = Source_Serif_4({
-  subsets: ["latin"],
-  variable: "--font-serif",
 });
 
 export const metadata: Metadata = {
@@ -53,7 +49,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
-      className={cn("font-sans", geist.variable, sourceSerif.variable)}
+      className={cn("font-sans", poppins.variable)}
     >
       <body className="flex min-h-screen flex-col antialiased">
         <SkipLink />

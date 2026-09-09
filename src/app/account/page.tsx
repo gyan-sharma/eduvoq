@@ -76,6 +76,15 @@ export default async function AccountPage() {
         <Link href="/resources" className={`${secondaryButtonClass} w-auto`}>
           Resource Corner
         </Link>
+        <Link href="/account/network" className={`${secondaryButtonClass} w-auto`}>
+          Network
+        </Link>
+        <Link href="/account/posts" className={`${secondaryButtonClass} w-auto`}>
+          My posts
+        </Link>
+        <Link href="/account/notifications" className={`${secondaryButtonClass} w-auto`}>
+          Notifications
+        </Link>
         <Link href="/account/settings" className={`${secondaryButtonClass} w-auto`}>
           Account settings
         </Link>

@@ -418,6 +418,23 @@ export const DEMO_GROUPS: DemoGroup[] = [
       },
     ],
   },
+  {
+    slug: "student-circle",
+    name: "Student Circle",
+    description:
+      "A supervised space for students and parents. First names only on public cards. No DMs.",
+    isOfficial: true,
+    memberCount: 42,
+    postCount: 1,
+    posts: [
+      {
+        id: "demo-group-student-1",
+        body: "Sample student-space post. In production this group is for students and parents, not Teacher Social.",
+        createdAt: daysAgo(4),
+        author: DEMO_AUTHORS.rahul,
+      },
+    ],
+  },
 ];
 
 export function demoForumAuthor(author: DemoAuthor) {

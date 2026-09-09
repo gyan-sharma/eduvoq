@@ -107,6 +107,49 @@ function rewriteHashtagPath(pathname: string): string {
   return `/blog/tags/${slugifyHashtag(match[1])}`;
 }
 
+/** Map a Wix CDN URL onto a copied `/wix/...` file when the media index has it. */
+export function localWixMediaPath(
+  url: string,
+  index: Record<string, string>,
+): string | null {
+  const canonical = canonicalWixMediaUrl(url);
+  const match = canonical.match(/static\.wixstatic\.com\/media\/([^/?#]+)/i);
+  if (!match) return null;
+  const folder = decodeURIComponent(match[1]);
+  return (
+    index[folder] ??
+    index[folder.replaceAll("~", "_")] ??
+    index[folder.replaceAll("_mv2", "~mv2")] ??
+    null
+  );
+}
+
+export function rewriteTipTapLocalMedia(
+  node: {
+    type: string;
+    attrs?: Record<string, unknown>;
+    content?: unknown[];
+    text?: string;
+    marks?: unknown[];
+  },
+  index: Record<string, string>,
+): typeof node {
+  const next = { ...node };
+  if (node.type === "image" && node.attrs?.src) {
+    const local = localWixMediaPath(String(node.attrs.src), index);
+    next.attrs = { ...node.attrs, src: local ?? node.attrs.src };
+  }
+  if (Array.isArray(node.content)) {
+    next.content = node.content.map((child) =>
+      rewriteTipTapLocalMedia(
+        child as typeof node,
+        index,
+      ),
+    );
+  }
+  return next;
+}
+
 export function canonicalWixMediaUrl(url: string): string {
   const trimmed = url.trim();
   if (!trimmed) return trimmed;

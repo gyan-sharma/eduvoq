@@ -34,7 +34,7 @@ export default async function NotificationsPage() {
             Notifications
           </h1>
           <p className="mt-2 text-sm text-stone-600">
-            Follows and later community activity land here. There is no private
+            Follows, group posts, and comments land here. There is no private
             inbox or DMs.
           </p>
         </div>

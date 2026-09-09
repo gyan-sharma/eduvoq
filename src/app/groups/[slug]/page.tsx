@@ -9,7 +9,8 @@ import { JoinGroupButton } from "@/components/groups/join-group-button";
 import { PollForm } from "@/components/groups/poll-form";
 import { PollVoteForm } from "@/components/groups/poll-vote-form";
 import {
-  canUseEducatorCommunity,
+  GROUP_AUDIENCE_STUDENT,
+  canJoinGroupAudience,
   formatCommunityWhen,
   parsePollJson,
   shouldRenderGroupPostBody,
@@ -64,26 +65,36 @@ export default async function GroupDetailPage({
   const group = await loadGroup(slug);
   if (!group) notFound();
 
-  const gate = canUseEducatorCommunity(user);
-  const [membership, posts] = await Promise.all([
-    prisma.groupMember.findUnique({
-      where: { groupId_userId: { groupId: group.id, userId: user.id } },
-      select: { role: true },
-    }),
-    prisma.groupPost.findMany({
-      where: { groupId: group.id },
-      orderBy: { createdAt: "desc" },
-      include: {
-        author: {
-          select: { id: true, name: true, username: true, image: true },
-        },
-        votes: { select: { userId: true, optionIdx: true } },
-      },
-    }),
-  ]);
+  const joinGate = canJoinGroupAudience(user, group.audience);
+  const membership = await prisma.groupMember.findUnique({
+    where: { groupId_userId: { groupId: group.id, userId: user.id } },
+    select: { role: true },
+  });
 
   const isMember = Boolean(membership);
-  const canPost = gate.ok && isMember;
+  const canPost = joinGate.ok && isMember;
+  const studentSpace = group.audience === GROUP_AUDIENCE_STUDENT;
+  const staffViewer = user.role === "STAFF" || user.role === "ADMIN";
+  const canSeePosts = isMember || staffViewer;
+
+  const posts = canSeePosts
+    ? await prisma.groupPost.findMany({
+        where: { groupId: group.id },
+        orderBy: { createdAt: "desc" },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              image: true,
+              role: true,
+            },
+          },
+          votes: { select: { userId: true, optionIdx: true } },
+        },
+      })
+    : [];
 
   return (
     <section className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6">
@@ -97,7 +108,11 @@ export default async function GroupDetailPage({
       <header className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-medium tracking-wide text-primary uppercase">
-            {group.isOfficial ? "Official group" : "Group"}
+            {studentSpace
+              ? "Student Circle"
+              : group.isOfficial
+                ? "Official group"
+                : "Educator group"}
           </p>
           <h1 className="mt-1 font-heading text-3xl font-semibold tracking-tight">
             {group.name}
@@ -114,8 +129,8 @@ export default async function GroupDetailPage({
         <JoinGroupButton
           slug={group.slug}
           isMember={isMember}
-          canJoin={gate.ok}
-          blockedReason={gate.ok ? undefined : gate.reason}
+          canJoin={joinGate.ok}
+          blockedReason={joinGate.ok ? undefined : joinGate.reason}
         />
       </header>
 
@@ -124,17 +139,22 @@ export default async function GroupDetailPage({
           <GroupPostForm slug={group.slug} />
           <PollForm slug={group.slug} />
         </div>
-      ) : gate.ok ? (
+      ) : joinGate.ok ? (
         <p className="mt-8 rounded-xl border border-dashed border-border bg-card p-5 text-sm text-muted-foreground">
           Join this group to post, create a poll, or vote.
         </p>
       ) : (
         <p className="mt-8 rounded-xl border border-dashed border-border bg-card p-5 text-sm text-muted-foreground">
-          {gate.reason}
+          {joinGate.reason}
         </p>
       )}
 
-      {posts.length === 0 ? (
+      {!canSeePosts ? (
+        <p className="mt-10 rounded-xl border border-dashed border-border bg-card p-8 text-sm text-muted-foreground">
+          This group is limited to its audience. Join if you are allowed, or
+          pick a different group.
+        </p>
+      ) : posts.length === 0 ? (
         <p className="mt-10 rounded-xl border border-dashed border-border bg-card p-8 text-sm text-muted-foreground">
           No discussions yet.
         </p>
@@ -156,6 +176,9 @@ export default async function GroupDetailPage({
                     name={post.author.name}
                     username={post.author.username}
                     image={post.author.image}
+                    restricted={
+                      studentSpace && post.author.role === "STUDENT"
+                    }
                   />
                   <time
                     className="shrink-0 text-xs text-muted-foreground"

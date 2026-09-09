@@ -6,6 +6,7 @@ import { CmsBody } from "@/components/cms-body";
 import { JsonLd } from "@/components/json-ld";
 import { MarketingPage } from "@/components/marketing-page";
 import { TaxonomyLinks } from "@/components/post-list";
+import postCovers from "@/content/post-covers.json";
 import { formatDateIst } from "@/lib/dates";
 import {
   getPublishedPostBySlug,
@@ -37,6 +38,14 @@ export default async function BlogPostPage({
 
   return (
     <MarketingPage title={post.title}>
+      {postCovers[post.slug as keyof typeof postCovers] ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={postCovers[post.slug as keyof typeof postCovers]}
+          alt=""
+          className="mb-8 max-h-96 w-full rounded-2xl object-cover"
+        />
+      ) : null}
       <JsonLd data={postJsonLd(post)} />
       <p className="text-sm text-muted-foreground">
         {formatDateIst(post.publishedAt) ?? "Published"}

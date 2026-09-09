@@ -5,6 +5,7 @@ import {
   canSetOwnProfilePublic,
   canViewProfile,
   directoryWhere,
+  studentDirectoryWhere,
   firstName,
   followNotificationHref,
   isDirectoryRole,
@@ -53,6 +54,7 @@ describe("directory listing", () => {
       Role.STAFF,
       Role.ADMIN,
     ]);
+    expect(studentDirectoryWhere().role).toBe(Role.STUDENT);
   });
 });
 

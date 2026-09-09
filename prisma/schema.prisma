@@ -452,13 +452,17 @@ model ForumPost {
 
 model Group {
   id          String        @id @default(cuid())
-  slug        String        @unique // job-alerts, social-network
+  slug        String        @unique // job-alerts, social-network, student-circle
   name        String
   description String?       @db.Text
   isOfficial  Boolean       @default(false)
+  /** EDUCATOR | STUDENT */
+  audience    String        @default("EDUCATOR")
   createdById String
   memberships GroupMember[]
   posts       GroupPost[]
+
+  @@index([audience])
 }
 
 model GroupMember {

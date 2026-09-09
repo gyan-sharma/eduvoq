@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CmsBody } from "@/components/cms-body";
 import { formatDurationMinutes, formatInrPaise } from "@/lib/money";
 import { jsonPlainText } from "@/lib/tiptap-text";
+import { getCmsPage } from "@/server/cms";
 import { prisma } from "@/server/db";
 import { isFlagEnabled } from "@/server/flags";
 
@@ -14,6 +16,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ConsultIndexPage() {
+  const landing = await getCmsPage("consult");
   const enabled = await isFlagEnabled("bookings");
   const services = await prisma.consultationService.findMany({
     where: { isActive: true },
@@ -22,17 +25,36 @@ export default async function ConsultIndexPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-12">
-      <p className="text-sm font-medium uppercase tracking-wide text-emerald-800">
+      <div className="mb-8 grid gap-3 sm:grid-cols-2">
+        {(landing?.images?.length ? landing.images : ["/brand/consult.png"])
+          .slice(0, 2)
+          .map((src) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={src}
+              src={src}
+              alt=""
+              className="max-h-72 w-full rounded-2xl object-contain"
+            />
+          ))}
+      </div>
+      <p className="text-sm font-medium uppercase tracking-wide text-primary">
         Consulting services
       </p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
         Expert consultation
       </h1>
-      <p className="mt-3 max-w-2xl text-stone-600">
-        One-to-one sessions for educators, parents, and students. Times are in
-        Asia/Kolkata. Online by default — a meeting link is added once the
-        expert confirms.
-      </p>
+      {landing ? (
+        <div className="mt-4 max-w-2xl">
+          <CmsBody body={landing.bodyJson} />
+        </div>
+      ) : (
+        <p className="mt-3 max-w-2xl text-stone-600">
+          One-to-one sessions for educators, parents, and students. Times are in
+          Asia/Kolkata. Online by default — a meeting link is added once the
+          expert confirms.
+        </p>
+      )}
       {!enabled ? (
         <p className="mt-6 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
           Online booking is paused. Email hello@eduvoq.com to request a session.

@@ -30,6 +30,9 @@ export type PollJson = {
   options: string[];
 };
 
+export const GROUP_AUDIENCE_EDUCATOR = "EDUCATOR";
+export const GROUP_AUDIENCE_STUDENT = "STUDENT";
+
 export function canUseEducatorCommunity(user: {
   role: Role;
   status: UserStatus;
@@ -41,16 +44,94 @@ export function canUseEducatorCommunity(user: {
     return {
       ok: false,
       reason:
-        "Student accounts cannot post on Teacher Social or join groups.",
+        "Student accounts use Student Circle groups and the forum, not Teacher Social posts.",
     };
   }
   if (!isDirectoryRole(user.role)) {
     return {
       ok: false,
-      reason: "Teacher Social and groups are for educators.",
+      reason: "Teacher Social is for educators. Parents can join student groups.",
     };
   }
   return { ok: true };
+}
+
+export function canJoinGroupAudience(
+  user: { role: Role; status: UserStatus },
+  audience: string,
+): CommunityGate {
+  if (user.status !== UserStatus.ACTIVE) {
+    return { ok: false, reason: "Finish activating your account first." };
+  }
+  if (audience === GROUP_AUDIENCE_STUDENT) {
+    if (
+      user.role === Role.STUDENT ||
+      user.role === Role.PARENT ||
+      user.role === Role.STAFF ||
+      user.role === Role.ADMIN
+    ) {
+      return { ok: true };
+    }
+    return {
+      ok: false,
+      reason: "Student Circle groups are for students, parents, and staff.",
+    };
+  }
+  return canUseEducatorCommunity(user);
+}
+
+export function defaultGroupAudience(role: Role): string {
+  return role === Role.STUDENT ? GROUP_AUDIENCE_STUDENT : GROUP_AUDIENCE_EDUCATOR;
+}
+
+export const TARGET_FEED_POST = "FEED_POST";
+
+export function visibleGroupAudiences(role: Role): string[] {
+  if (role === Role.STAFF || role === Role.ADMIN) {
+    return [GROUP_AUDIENCE_EDUCATOR, GROUP_AUDIENCE_STUDENT];
+  }
+  if (role === Role.STUDENT || role === Role.PARENT) {
+    return [GROUP_AUDIENCE_STUDENT];
+  }
+  return [GROUP_AUDIENCE_EDUCATOR];
+}
+
+export function tallyReactionsByTarget(
+  rows: { targetId: string; emoji: string; userId: string }[],
+  viewerId: string | null,
+): Map<string, { counts: Record<string, number>; mine: string[] }> {
+  const map = new Map<string, { counts: Record<string, number>; mine: string[] }>();
+  for (const row of rows) {
+    let entry = map.get(row.targetId);
+    if (!entry) {
+      entry = { counts: {}, mine: [] };
+      map.set(row.targetId, entry);
+    }
+    entry.counts[row.emoji] = (entry.counts[row.emoji] ?? 0) + 1;
+    if (viewerId && row.userId === viewerId && !entry.mine.includes(row.emoji)) {
+      entry.mine.push(row.emoji);
+    }
+  }
+  return map;
+}
+
+export function canCreateGroup(user: {
+  role: Role;
+  status: UserStatus;
+}): CommunityGate {
+  if (user.status !== UserStatus.ACTIVE) {
+    return { ok: false, reason: "Finish activating your account first." };
+  }
+  if (user.role === Role.PARENT) {
+    return {
+      ok: false,
+      reason: "Parents join student groups rather than creating them.",
+    };
+  }
+  if (user.role === Role.STUDENT || isDirectoryRole(user.role)) {
+    return { ok: true };
+  }
+  return { ok: false, reason: "Your account cannot create groups." };
 }
 
 export function parsePollJson(value: unknown): PollJson | null {

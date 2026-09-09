@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 
+import { CmsBody } from "@/components/cms-body";
 import { ContactForm } from "@/components/contact-form";
 import { MarketingPage } from "@/components/marketing-page";
 import { CONTACT_EMAIL } from "@/lib/nav";
 import { getTurnstileSiteKey } from "@/lib/turnstile";
+import { getCmsPage } from "@/server/cms";
 
 export const dynamic = "force-dynamic";
 
@@ -12,15 +14,18 @@ export const metadata: Metadata = {
   description: `Contact EduVoq at ${CONTACT_EMAIL}.`,
 };
 
-export default function ContactPage() {
+export default async function ContactPage() {
   const siteKey = getTurnstileSiteKey();
+  const page = await getCmsPage("contact");
 
   return (
     <MarketingPage
-      title="Contact"
+      title={page?.title ?? "Contact"}
       description="Questions about consulting, community, or EduVoq? Send a note — we read every message."
+      images={page?.images}
     >
-      <p className="text-base leading-7">
+      {page ? <CmsBody body={page.bodyJson} /> : null}
+      <p className="mt-6 text-base leading-7">
         Email{" "}
         <a
           href={`mailto:${CONTACT_EMAIL}`}

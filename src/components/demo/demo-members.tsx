@@ -17,10 +17,11 @@ export function DemoMembersIndex() {
         Community
       </p>
       <h1 className="mt-2 font-heading text-3xl font-semibold tracking-tight">
-        Educators
+        Members
       </h1>
       <p className="mt-3 max-w-2xl text-muted-foreground">
-        Sample public directory. Student accounts are never listed.
+        Sample public directory. Students appear only as first-name cards when a
+        parent opts in.
       </p>
       <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {DEMO_MEMBERS.map((member) => (

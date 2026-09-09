@@ -41,7 +41,9 @@ function revalidateFollow(actorUsername: string | null, targetUsername: string) 
   revalidatePath(`/members/${targetUsername}`);
   revalidatePath("/members");
   revalidatePath("/account");
+  revalidatePath("/account/network");
   revalidatePath("/account/notifications");
+  revalidatePath("/community");
   if (actorUsername) revalidatePath(`/members/${actorUsername}`);
 }
 

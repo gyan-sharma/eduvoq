@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { cmsPageBySlug } from "@/content/cms";
 import { serviceGroups } from "@/lib/nav";
+import { serviceMedia } from "@/lib/service-media";
 
 export const metadata: Metadata = {
   title: "Services",
@@ -37,7 +38,15 @@ export default function ServicesIndexPage() {
                 return (
                   <li key={item.href}>
                     <Link href={item.href} className="block h-full">
-                      <Card className="h-full transition-colors hover:bg-muted/40">
+                      <Card className="h-full overflow-hidden transition-colors hover:bg-muted/40">
+                        {serviceMedia[slug] ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={serviceMedia[slug].src}
+                            alt=""
+                            className="h-36 w-full object-cover"
+                          />
+                        ) : null}
                         <CardHeader>
                           <CardTitle>{item.label}</CardTitle>
                           {page?.seoDescription ? (

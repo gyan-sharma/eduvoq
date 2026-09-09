@@ -42,6 +42,7 @@ export type ExtractedPage = {
   sourcePath: string;
   bodyJson: TipTapNode;
   bodyText: string;
+  images: string[];
   warnings: string[];
 };
 

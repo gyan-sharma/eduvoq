@@ -1,9 +1,11 @@
+import archivePagesFile from "./archive-pages.json";
 import {
   bulletList,
   doc,
   heading,
   link,
   paragraph,
+  textFromTipTap,
   type TipTapNode,
 } from "./tiptap";
 
@@ -13,6 +15,7 @@ export type CmsPageSeed = {
   seoTitle?: string;
   seoDescription?: string;
   bodyJson: TipTapNode;
+  images?: string[];
 };
 
 function servicePage(input: {
@@ -40,30 +43,33 @@ function servicePage(input: {
   };
 }
 
-export const cmsPages: CmsPageSeed[] = [
+const cmsPagesBase: CmsPageSeed[] = [
   {
     slug: "about",
     title: "About Us",
     seoDescription:
-      "EduVoq is a professional network and resource hub for school teachers and K-12 stakeholders in India.",
+      "EduVoq is more than a social network — a platform for school teachers and K-12 students, with consulting, learning materials, blogs, and forums.",
     bodyJson: doc(
       paragraph(
-        "EduVoq is a professional network and resource hub for educators with an emphasis on school teachers. We aim to be a vibrant community of professionals involved in pre-school, primary and secondary education — an advertisement-free platform for sharing knowledge and connecting with each other.",
+        "Founded with a vision to revolutionize the way we teach and learn, EduVoq is more than just a social network, it's a dynamic online platform designed to empower educators and students at every level. At EduVoq, we believe that education is the key to unlocking human potential and driving positive change in the world. That's why we're dedicated to providing a comprehensive suite of tools and resources tailored specifically for school teachers and K-12 education. Our platform offers a wide range of features to support educators in their professional development journey.",
       ),
       paragraph(
-        "Parents and students are welcome for educational consultations. Teachers remain at the centre of the community.",
+        "From consulting sessions with experienced educators to curated learning materials covering a variety of subjects and teaching methodologies, we strive to provide the support and inspiration they need to excel in their roles. But EduVoq isn't just for educators—it's also a vibrant community where students can connect with peers, access valuable learning resources, and engage in meaningful discussions.",
+      ),
+      paragraph(
+        "Whether you're looking for homework help, seeking advice on college applications, or simply want to connect with like-minded individuals, it's the place to be. In addition to our social networking features, EduVoq also offers a wealth of educational content, including blogs, forums, and up-to-date news on the latest developments in the world of education. Our mission is to create a collaborative environment where educators and students can come together to share ideas, inspire one another, and drive innovation in education.",
       ),
       heading(2, "Mission", "mission"),
       paragraph(
-        "Empower educators and K-12 students with collaboration, innovation, and continuous learning. We do this through consulting sessions, curated learning materials, blogs, forums, education news, and social networking — without turning the platform into an advertisement board.",
+        "At EduVoq, our mission is to empower educators and students alike by providing a comprehensive platform that fosters collaboration, innovation, and continuous learning. We strive to create a vibrant online community where school teachers and K-12 students can connect, share knowledge, access valuable resources, and engage in meaningful dialogue. Our ultimate goal is to enhance the quality of education worldwide by equipping educators with the tools and support they need to inspire and educate the next generation.",
       ),
       heading(2, "Vision", "vision"),
       paragraph(
-        "A professional-development hub and community-driven education platform for India’s school ecosystem: CBSE, ICSE, IB, Kendriya Vidyalaya, Navodaya, municipal, and state-board institutions.",
+        "Our vision is to revolutionize the landscape of education by reimagining the way educators and students interact and learn. We envision a future where every educator has access to a dynamic online platform that serves as a hub for professional development, collaboration, and resource-sharing. Through our innovative features such as consulting sessions, learning materials, blogs, forums, and education news, we aim to empower educators to excel in their roles and create impactful learning experiences for their students. By fostering a community-driven approach to education, we aspire to cultivate a lifelong love for learning and drive positive change in the global education system.",
       ),
       heading(2, "Founder"),
       paragraph(
-        "Pragya Sharma founded EduVoq after a decade of teaching in Delhi Government Schools and Kendriya Vidyalaya. She completed EdLeap (Education Leadership and Management) at IIM Calcutta and holds master’s degrees in literature and education.",
+        "Pragya Sharma, the founder of EduVoq, brings over a decade of invaluable experience in teaching within Delhi Government Schools and Kendriya Vidyalaya. With a deep-rooted passion for education, she has completed the EdLeap program in Education Leadership and Management from IIM Calcutta and has a masters degree in literature and education. Fueled by her firsthand experiences and driven by a vision to empower the educator community and elevate the quality of education for students, Pragya established EduVoq. Her dedication to improving educational outcomes resonates through every aspect of the platform.",
       ),
     ),
   },
@@ -304,6 +310,45 @@ export const cmsPages: CmsPageSeed[] = [
       "Students and parents can also book a one-to-one Career Options and Counselling session. School-wide programmes are scoped as consulting engagements.",
   }),
 ];
+
+type ArchivePageFile = {
+  pages: Array<{
+    slug: string;
+    title: string;
+    seoTitle?: string;
+    seoDescription?: string;
+    bodyJson: TipTapNode;
+    images?: string[];
+  }>;
+};
+
+const LEGAL_SLUGS = new Set(["privacy", "terms"]);
+
+function overlayArchive(pages: CmsPageSeed[]): CmsPageSeed[] {
+  const map = new Map(pages.map((page) => [page.slug, page]));
+  const archived = archivePagesFile as ArchivePageFile;
+  for (const page of archived.pages) {
+    if (LEGAL_SLUGS.has(page.slug)) continue;
+    if (page.slug.startsWith("consult/")) continue;
+    if (textFromTipTap(page.bodyJson).length < 80) continue;
+    map.set(page.slug, {
+      slug: page.slug,
+      title: page.title,
+      seoTitle: page.seoTitle,
+      seoDescription: page.seoDescription,
+      bodyJson: page.bodyJson,
+      images: page.images,
+    });
+  }
+  return [...map.values()];
+}
+
+export function getArchivePage(slug: string) {
+  const archived = archivePagesFile as ArchivePageFile;
+  return archived.pages.find((page) => page.slug === slug) ?? null;
+}
+
+export const cmsPages: CmsPageSeed[] = overlayArchive(cmsPagesBase);
 
 export const cmsPageBySlug: Record<string, CmsPageSeed> = Object.fromEntries(
   cmsPages.map((page) => [page.slug, page]),

@@ -8,6 +8,8 @@ const links: { href: string; label: string; exact?: boolean }[] = [
   { href: "/account", label: "Overview", exact: true },
   { href: "/account/settings", label: "Settings" },
   { href: "/account/notifications", label: "Notifications" },
+  { href: "/account/network", label: "Network" },
+  { href: "/account/posts", label: "Posts" },
   { href: "/account/orders", label: "Orders" },
   { href: "/account/bookings", label: "Bookings" },
   { href: "/account/wallet", label: "Wallet" },

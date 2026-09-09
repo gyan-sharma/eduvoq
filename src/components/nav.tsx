@@ -270,6 +270,11 @@ export function MobileNav({
                   </SheetClose>
                 </Button>
               ) : null}
+              <Button variant="outline" className="flex-1" asChild>
+                <SheetClose asChild>
+                  <Link href="/account/notifications">Alerts</Link>
+                </SheetClose>
+              </Button>
               <Button className="flex-1" asChild>
                 <SheetClose asChild>
                   <Link href="/account">Account</Link>

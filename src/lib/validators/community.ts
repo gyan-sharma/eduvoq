@@ -61,6 +61,25 @@ export const createPollSchema = z.object({
     ),
 });
 
+export const createGroupSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(3, "Name needs at least 3 characters.")
+    .max(80, "Keep the name under 80 characters."),
+  description: z
+    .string()
+    .trim()
+    .max(500, "Keep the description under 500 characters.")
+    .optional()
+    .or(z.literal("")),
+});
+
+export const feedReactSchema = z.object({
+  postId: z.string().trim().min(1, "Missing post."),
+  emoji: z.enum(["👍", "❤️", "💡", "🎉"]),
+});
+
 export const votePollSchema = z.object({
   groupPostId: z.string().trim().min(1, "Missing poll."),
   optionIdx: z.coerce

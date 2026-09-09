@@ -5,6 +5,7 @@ import { CmsBody } from "@/components/cms-body";
 import { MarketingPage } from "@/components/marketing-page";
 import { ServiceCtas } from "@/components/service-ctas";
 import { serviceLinks } from "@/lib/nav";
+import { serviceMedia } from "@/lib/service-media";
 import { getCmsPage } from "@/server/cms";
 
 export const dynamic = "force-dynamic";
@@ -42,8 +43,15 @@ export default async function ServicePage({
   const page = await getCmsPage(`services/${slug}`);
   if (!page) notFound();
 
+  const gallery =
+    page.images.length > 0
+      ? page.images
+      : serviceMedia[slug]
+        ? [serviceMedia[slug].src]
+        : [];
+
   return (
-    <MarketingPage title={page.title}>
+    <MarketingPage title={page.title} images={gallery}>
       <CmsBody body={page.bodyJson} />
       <ServiceCtas />
     </MarketingPage>

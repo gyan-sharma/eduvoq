@@ -56,8 +56,8 @@ export function ChildPrivacyForm({
           defaultChecked={child.isProfilePublic}
         />
         <span>
-          Opt into a first-name + grade public card. The student still will not
-          appear in the educators directory.
+          Opt into a first-name + grade public card on Members → Student
+          Circle. Last name, school, and photo stay private.
         </span>
       </label>
       <button className={`${buttonClass} w-auto`} type="submit" disabled={pending}>

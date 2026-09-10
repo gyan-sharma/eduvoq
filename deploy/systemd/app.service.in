@@ -7,12 +7,13 @@ Wants=network-online.target
 Type=simple
 User=www-data
 Group=www-data
-WorkingDirectory=/var/www/eduvoq/.next/standalone
-EnvironmentFile=-/var/www/eduvoq/.env
+WorkingDirectory=__DEPLOY_PATH__/.next/standalone
+EnvironmentFile=-__DEPLOY_PATH__/.env
 Environment=NODE_ENV=production
 Environment=PORT=3110
 Environment=HOSTNAME=127.0.0.1
 Environment=NODE_OPTIONS=--max-old-space-size=384
+# env PREFIX wins over EnvironmentFile so a leftover PORT=3000 cannot bind the public Next port.
 ExecStart=/usr/bin/env PORT=3110 HOSTNAME=127.0.0.1 NODE_OPTIONS=--max-old-space-size=384 /usr/bin/node server.js
 Restart=always
 RestartSec=5
